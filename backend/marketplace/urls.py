@@ -4,6 +4,10 @@ from . import views
 
 urlpatterns = [
     path("auth/register/", views.register, name="register"),
+    path("auth/confirm/", views.confirm_email, name="confirm-email"),
+    path("auth/resend/", views.resend_confirmation, name="resend-confirmation"),
+    path("auth/password-reset/", views.password_reset, name="password-reset"),
+    path("auth/password-reset/confirm/", views.password_reset_confirm, name="password-reset-confirm"),
     path("auth/login/", views.login, name="login"),
     path("auth/me/", views.me, name="me"),
     path("styles/", views.BraidStyleListView.as_view(), name="style-list"),
