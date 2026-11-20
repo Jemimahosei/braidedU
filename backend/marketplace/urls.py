@@ -30,6 +30,11 @@ urlpatterns = [
     path("bookings/<int:booking_id>/accept/", views.accept_booking, name="accept-booking"),
     path("bookings/<int:booking_id>/decline/", views.decline_booking, name="decline-booking"),
     path("bookings/<int:booking_id>/complete/", views.complete_booking, name="complete-booking"),
+    path("bookings/<int:booking_id>/paid/", views.mark_paid, name="mark-paid"),
+    path("bookings/<int:booking_id>/payment-received/", views.payment_received, name="payment-received"),
+    path("bookings/<int:booking_id>/braider-cancel/", views.braider_cancel_booking, name="braider-cancel"),
+    path("bookings/<int:booking_id>/reschedule/", views.reschedule_booking, name="reschedule-booking"),
+    path("bookings/<int:booking_id>/receipt/", views.booking_receipt, name="booking-receipt"),
     path("bookings/<int:booking_id>/cancel/", views.cancel_booking, name="cancel-booking"),
     path("bookings/<int:booking_id>/review/", views.reviews_for_booking, name="booking-review"),
 ]

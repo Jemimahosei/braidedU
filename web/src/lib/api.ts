@@ -53,6 +53,8 @@ export interface Braider {
   private_address?: string;
   cancel_window_hours: number;
   deposit_note: string;
+  venmo_handle?: string;
+  zelle_contact?: string;
   policy_text: string;
   reminders_enabled: boolean;
   buffer_minutes: number;
@@ -89,8 +91,27 @@ export interface Booking {
   date: string;
   start_time: string;
   end_time: string;
-  status: "requested" | "accepted" | "declined" | "completed" | "cancelled";
+  status:
+    | "requested"
+    | "accepted"
+    | "paid"
+    | "confirmed"
+    | "declined"
+    | "completed"
+    | "cancelled";
   notes: string;
+  place: string;
+  paid_at: string | null;
+  payment_confirmed_at: string | null;
+  payment_screenshot_url: string;
+  cancelled_by: string;
+  cancel_reason: string;
+  late_cancel: boolean;
+  cancel_deadline: string;
+  cancel_window_hours: number;
+  // Only present once the braider has accepted.
+  pay?: { venmo: string; zelle: string; deposit_note: string };
+  address?: string;
 }
 
 export type PhotoKind = "profile" | "work" | "review" | "message" | "reference";
@@ -241,8 +262,30 @@ export const api = {
     request<Booking[]>(`/bookings/${status ? `?status=${status}` : ""}`),
   createBooking: (data: Record<string, unknown>) =>
     request<Booking>("/bookings/", { method: "POST", body: JSON.stringify(data) }),
-  bookingAction: (id: number, action: "accept" | "decline" | "complete" | "cancel") =>
-    request<Booking>(`/bookings/${id}/${action}/`, { method: "POST" }),
+  bookingAction: (
+    id: number,
+    action: "accept" | "decline" | "complete" | "cancel" | "payment-received" | "braider-cancel",
+    body: Record<string, unknown> = {},
+  ) => request<Booking>(`/bookings/${id}/${action}/`, { method: "POST", body: JSON.stringify(body) }),
+  markPaid: (id: number, screenshot_url = "") =>
+    request<Booking>(`/bookings/${id}/paid/`, { method: "POST", body: JSON.stringify({ screenshot_url }) }),
+  reschedule: (id: number, date: string, start_time: string) =>
+    request<Booking>(`/bookings/${id}/reschedule/`, {
+      method: "POST",
+      body: JSON.stringify({ date, start_time }),
+    }),
+  receipt: (id: number) =>
+    request<{
+      receipt_no: number;
+      braider: string;
+      client: string;
+      service: string;
+      date: string;
+      start_time: string;
+      duration_minutes: number;
+      amount: string;
+      paid_on: string;
+    }>(`/bookings/${id}/receipt/`),
   reviewBooking: (id: number, rating: number, comment: string, photo_urls: string[] = []) =>
     request<Review>(`/bookings/${id}/review/`, {
       method: "POST",
