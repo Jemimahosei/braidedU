@@ -27,7 +27,7 @@ export default function Home() {
     <>
       <section className="hero">
         <div className="wrap">
-          <p className="eyebrow">Kormo Mela · Cornell campus</p>
+          <p className="eyebrow">braidedU · Cornell campus</p>
           <h1>
             Good braids, <em>booked</em> like you mean it.
           </h1>

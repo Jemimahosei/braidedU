@@ -112,7 +112,7 @@ export function Signup() {
   return (
     <div className="page">
       <div className="wrap" style={{ maxWidth: "560px" }}>
-        <p className="eyebrow">Join Kormo Mela</p>
+        <p className="eyebrow">Join braidedU</p>
         <h1>Create your account</h1>
         <p className="lede">Free for everyone on campus. Pick your side — you can only be one per account.</p>
         <form onSubmit={submit} className="panel stack" style={{ marginTop: "1.5rem" }}>

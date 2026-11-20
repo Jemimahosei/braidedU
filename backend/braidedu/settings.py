@@ -1,4 +1,4 @@
-"""Django settings for the Kormo Mela rebuild.
+"""Django settings for the braidedU rebuild.
 
 Local dev default is SQLite so the API runs with zero setup:
     python manage.py migrate
@@ -6,12 +6,12 @@ Local dev default is SQLite so the API runs with zero setup:
     python manage.py runserver
 
 Postgres (docker-compose) is used when DATABASE_URL is set, e.g.:
-    DATABASE_URL=postgres://kormo:kormo@db:5432/kormo_mela
+    DATABASE_URL=postgres://braidedu:braidedu@db:5432/braidedu
 """
 
 import os
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -53,7 +53,7 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-ROOT_URLCONF = "kormomela.urls"
+ROOT_URLCONF = "braidedu.urls"
 
 TEMPLATES = [
     {
@@ -71,11 +71,17 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "kormomela.wsgi.application"
+WSGI_APPLICATION = "braidedu.wsgi.application"
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 if DATABASE_URL:
     parsed = urlparse(DATABASE_URL)
+    # Hosted Postgres (Neon) requires SSL. Neon's connection strings carry
+    # ?sslmode=require; pass it through, defaulting to require for any
+    # non-local host so a bare URL still connects securely.
+    _query = dict(parse_qsl(parsed.query))
+    _local = parsed.hostname in (None, "localhost", "127.0.0.1", "db")
+    _sslmode = _query.get("sslmode", "prefer" if _local else "require")
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -84,6 +90,8 @@ if DATABASE_URL:
             "PASSWORD": parsed.password,
             "HOST": parsed.hostname,
             "PORT": parsed.port or "",
+            "CONN_MAX_AGE": 60,
+            "OPTIONS": {"sslmode": _sslmode},
         }
     }
 else:

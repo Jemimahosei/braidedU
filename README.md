@@ -1,4 +1,6 @@
-# Kormo Mela — Braids on Campus
+# braidedU — Braids on Campus
+
+*Formerly Kormo Mela.*
 
 A marketplace for braiding services for Black women on campus. Clients
 find student braiders, see real prices and durations up front, and request

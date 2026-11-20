@@ -1,4 +1,4 @@
-"""API views for Kormo Mela — braiding marketplace.
+"""API views for braidedU — braiding marketplace.
 
 Auth is DRF token auth: register/login return a token the client stores
 and sends as ``Authorization: Token <key>``.
