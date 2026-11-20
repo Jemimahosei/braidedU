@@ -1,4 +1,4 @@
-"""Core models for Kormo Mela — a braiding-services marketplace for Black
+"""Core models for braidedU — a braiding-services marketplace for Black
 women on campus.
 
 Two sides, synced through bookings:
