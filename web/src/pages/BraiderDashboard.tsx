@@ -44,10 +44,10 @@ export default function BraiderDashboard() {
       await api.bookingAction(id, action);
       setNotice(
         action === "accept"
-          ? "Booking accepted — it is on your schedule now."
+          ? "Booking accepted. It is on your schedule now."
           : action === "decline"
             ? "Booking declined."
-            : "Marked complete — your client can now leave a review.",
+            : "Marked complete. Your client can now leave a review.",
       );
       load();
     } catch (e) {
@@ -123,14 +123,12 @@ export default function BraiderDashboard() {
   return (
     <div className="page">
       <div className="wrap">
-        <p className="eyebrow">Braider dashboard</p>
         <h1>
           {profile ? `${profile.display_name}’s chair` : "Your chair"}{" "}
           <Stars rating={profile?.average_rating ?? null} />
         </h1>
         <p className="muted">
-          {done} completed appointment{done === 1 ? "" : "s"} ·{" "}
-          {requests.length} request{requests.length === 1 ? "" : "s"} waiting
+          {done} completed appointment{done === 1 ? "" : "s"}, {requests.length} request{requests.length === 1 ? "" : "s"} waiting
         </p>
         {error && <p className="error" style={{ marginTop: "1rem" }}>{error}</p>}
         {notice && <p className="notice" style={{ marginTop: "1rem" }}>{notice}</p>}
@@ -142,7 +140,11 @@ export default function BraiderDashboard() {
               type="button"
               className="chip"
               aria-pressed={tab === t}
-              onClick={() => setTab(t)}
+              onClick={() => {
+                setTab(t);
+                setError("");
+                setNotice("");
+              }}
             >
               {t === "requests" ? `Requests (${requests.length})` : t[0].toUpperCase() + t.slice(1)}
             </button>
@@ -159,10 +161,10 @@ export default function BraiderDashboard() {
                   <StatusPill status={b.status} />
                 </div>
                 <div className="meta">
-                  {b.listing_title} · {b.style_name}
+                  {b.listing_title}, {b.style_name}
                 </div>
                 <div>
-                  {formatDate(b.date)} at {formatTime(b.start_time)}–{formatTime(b.end_time)} ·{" "}
+                  {formatDate(b.date)}, {formatTime(b.start_time)} to {formatTime(b.end_time)}.{" "}
                   {formatPrice(b.price)}
                 </div>
                 {b.notes && <p className="muted">“{b.notes}”</p>}
@@ -190,10 +192,10 @@ export default function BraiderDashboard() {
                   <StatusPill status={b.status} />
                 </div>
                 <div className="meta">
-                  {b.listing_title} · {b.style_name}
+                  {b.listing_title}, {b.style_name}
                 </div>
                 <div>
-                  {formatDate(b.date)} at {formatTime(b.start_time)}–{formatTime(b.end_time)} ·{" "}
+                  {formatDate(b.date)}, {formatTime(b.start_time)} to {formatTime(b.end_time)}.{" "}
                   {formatPrice(b.price)}
                 </div>
                 {b.notes && <p className="muted">“{b.notes}”</p>}
@@ -215,12 +217,12 @@ export default function BraiderDashboard() {
               <div className="row">
                 <div>
                   <label htmlFor="nl-title">Title</label>
-                  <input id="nl-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Knotless Braids — mid-back" required />
+                  <input id="nl-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Knotless braids, mid-back" required />
                 </div>
                 <div>
                   <label htmlFor="nl-style">Style</label>
                   <select id="nl-style" value={newStyle} onChange={(e) => setNewStyle(e.target.value)} required>
-                    <option value="">Pick a style…</option>
+                    <option value="">Pick a style</option>
                     {styles.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -241,21 +243,20 @@ export default function BraiderDashboard() {
               </div>
               <div>
                 <label htmlFor="nl-desc">Description (optional)</label>
-                <input id="nl-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Hair included, mid-back length…" />
+                <input id="nl-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Hair included, mid-back length" />
               </div>
               <button className="btn" type="submit">
                 Publish listing
               </button>
             </form>
             <h2>Your listings</h2>
-            {listings.length === 0 && <p className="muted">No listings yet — add your first one above.</p>}
+            {listings.length === 0 && <p className="muted">No listings yet. Add your first one above.</p>}
             {listings.map((l) => (
               <div key={l.id} className="panel" style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
                 <div>
                   <strong>{l.title}</strong>
                   <div className="muted">
-                    {l.style_name} · {formatPrice(l.price)} · {l.duration_minutes} min ·{" "}
-                    {l.is_active ? "Live" : "Paused"}
+                    {l.style_name}, {formatPrice(l.price)}, {l.duration_minutes} min. {l.is_active ? "Live" : "Paused"}
                   </div>
                 </div>
                 <button className="btn btn-ghost btn-sm" type="button" onClick={() => toggleListing(l)}>
@@ -280,13 +281,13 @@ export default function BraiderDashboard() {
             </div>
             <div>
               <label htmlFor="pf-bio">Bio</label>
-              <textarea id="pf-bio" rows={3} value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} placeholder="What you do best, how long you have been braiding…" />
+              <textarea id="pf-bio" rows={3} value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} placeholder="What you do best, how long you have been braiding" />
             </div>
             <div className="row">
               <div>
                 <label htmlFor="pf-area">Campus area</label>
                 <select id="pf-area" value={profile.campus_area} onChange={(e) => setProfile({ ...profile, campus_area: e.target.value })}>
-                  <option value="">Pick an area…</option>
+                  <option value="">Pick an area</option>
                   {Object.entries(CAMPUS_AREAS).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
@@ -296,7 +297,7 @@ export default function BraiderDashboard() {
               </div>
               <div>
                 <label htmlFor="pf-loc">Where clients meet you</label>
-                <input id="pf-loc" value={profile.location_detail} onChange={(e) => setProfile({ ...profile, location_detail: e.target.value })} placeholder="Dorm lounge, apartment…" />
+                <input id="pf-loc" value={profile.location_detail} onChange={(e) => setProfile({ ...profile, location_detail: e.target.value })} placeholder="Dorm lounge, apartment" />
               </div>
               <div>
                 <label htmlFor="pf-yrs">Years braiding</label>
