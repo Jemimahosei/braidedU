@@ -33,11 +33,14 @@ export interface Review {
   rating: number;
   comment: string;
   photo_urls: string[];
+  braider_reply: string;
+  replied_at: string | null;
   created_at: string;
 }
 
 export interface Braider {
   id: number;
+  user_id: number;
   username: string;
   display_name: string;
   bio: string;
@@ -76,6 +79,43 @@ export interface TimeOff {
   note: string;
 }
 
+export interface Conversation {
+  user_id: number;
+  name: string;
+  photo_url: string;
+  role: string;
+  last: string;
+  last_at: string;
+  unread: number;
+  blocked: boolean;
+}
+
+export interface ChatMessage {
+  id: number;
+  mine: boolean;
+  body: string;
+  photo_url: string;
+  created_at: string;
+}
+
+export interface Thread {
+  user_id: number;
+  name: string;
+  photo_url: string;
+  role: string;
+  can_reply: boolean;
+  blocked: boolean;
+  messages: ChatMessage[];
+}
+
+export const REPORT_REASONS: Record<string, string> = {
+  harassment: "Harassment or unsafe behavior",
+  no_show: "No-show or repeated cancelling",
+  scam: "Scam or payment problem",
+  fake: "Fake profile or photos",
+  other: "Something else",
+};
+
 export interface Booking {
   id: number;
   client: number;
@@ -109,6 +149,8 @@ export interface Booking {
   late_cancel: boolean;
   cancel_deadline: string;
   cancel_window_hours: number;
+  client_user_id: number;
+  braider_user_id: number;
   // Only present once the braider has accepted.
   pay?: { venmo: string; zelle: string; deposit_note: string };
   address?: string;
@@ -241,6 +283,27 @@ export const api = {
   addTimeOff: (data: { start_date: string; end_date: string; note: string }) =>
     request<TimeOff>("/braiders/me/time-off/", { method: "POST", body: JSON.stringify(data) }),
   removeTimeOff: (id: number) => request<void>(`/braiders/me/time-off/${id}/`, { method: "DELETE" }),
+  conversations: () => request<Conversation[]>("/messages/"),
+  unread: () => request<{ unread: number }>("/messages/unread/"),
+  thread: (userId: number | string) => request<Thread>(`/messages/${userId}/`),
+  sendMessage: (userId: number | string, body: string, photo_url = "") =>
+    request<ChatMessage>(`/messages/${userId}/`, {
+      method: "POST",
+      body: JSON.stringify({ body, photo_url }),
+    }),
+  block: (userId: number) => request<{ blocked: boolean }>(`/blocks/${userId}/`, { method: "POST" }),
+  unblock: (userId: number) => request<{ blocked: boolean }>(`/blocks/${userId}/`, { method: "DELETE" }),
+  report: (user_id: number, reason: string, detail: string) =>
+    request<{ detail: string }>("/reports/", {
+      method: "POST",
+      body: JSON.stringify({ user_id, reason, detail }),
+    }),
+  replyToReview: (id: number, reply: string) =>
+    request<{ braider_reply: string }>(`/reviews/${id}/reply/`, {
+      method: "POST",
+      body: JSON.stringify({ reply }),
+    }),
+  deleteAllMyPhotos: () => request<{ removed: number }>("/photos/mine/", { method: "DELETE" }),
   recommended: (params: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
     return request<Braider[]>(`/recommended/?${q}`);
