@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && python manage.py migrate && python manage.py seed_demo && gunicorn braidedu.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: cd backend && python manage.py migrate && python manage.py seed_styles && gunicorn braidedu.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true

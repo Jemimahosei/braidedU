@@ -4,128 +4,70 @@ import {
   campusLabel,
   formatDuration,
   formatPrice,
+  initials,
+  sized,
   type Braider,
   type Listing,
 } from "../lib/api";
 
-const GREEN = "#0a5c36";
-const YELLOW = "#ffd60a";
-const INK = "#101010";
-const WHITE = "#ffffff";
-
-function hash(name: string): number {
-  let h = 7;
-  for (const ch of name) h = (h * 33 + ch.charCodeAt(0)) % 100003;
-  return h;
-}
-
 /**
- * Wax-print tile. Stands in for a face: braiders have not uploaded photos and
- * we never fake people. Motif and colourway come from the name, so each
- * braider keeps the same tile everywhere. Fans, circles and bands are the
- * shapes of Ghanaian printed cloth, drawn here as plain SVG.
+ * Profile picture: the braider's own uploaded photo, or their initials on
+ * sand when they have not added one. We never invent a face.
  */
-export function Avatar({ name, large }: { name: string; large?: boolean }) {
-  const h = hash(name);
-  const ways = [
-    [GREEN, YELLOW, INK, WHITE],
-    [INK, YELLOW, GREEN, WHITE],
-    [YELLOW, INK, GREEN, WHITE],
-    [GREEN, WHITE, YELLOW, INK],
-  ];
-  const [bg, a, b, c] = ways[h % ways.length];
-  const motif = Math.floor(h / 7) % 5;
-  let art;
-  switch (motif) {
-    case 0: // concentric circles
-      art = (
-        <>
-          <circle cx="32" cy="32" r="26" fill={a} />
-          <circle cx="32" cy="32" r="18" fill={b} />
-          <circle cx="32" cy="32" r="10" fill={c} />
-          <circle cx="32" cy="32" r="4" fill={a} />
-        </>
-      );
-      break;
-    case 1: // four fans from the corners
-      art = (
-        <>
-          <path d="M0 0h32a32 32 0 0 1-32 32z" fill={a} />
-          <path d="M64 64H32a32 32 0 0 1 32-32z" fill={a} />
-          <path d="M0 0h18a18 18 0 0 1-18 18z" fill={b} />
-          <path d="M64 64H46a18 18 0 0 1 18-18z" fill={b} />
-          <circle cx="48" cy="16" r="7" fill={c} />
-          <circle cx="16" cy="48" r="7" fill={c} />
-        </>
-      );
-      break;
-    case 2: // diagonal bands with dots
-      art = (
-        <>
-          <path d="M-8 40L40-8h14L-8 54z" fill={a} />
-          <path d="M20 72L72 20v14L34 72z" fill={a} />
-          <path d="M-8 62L62-8h6L-8 68z" fill={b} />
-          <circle cx="44" cy="44" r="6" fill={c} />
-          <circle cx="16" cy="16" r="5" fill={c} />
-        </>
-      );
-      break;
-    case 3: // scales: rows of half circles
-      art = (
-        <>
-          {[0, 1, 2, 3].map((row) =>
-            [0, 1, 2, 3].map((col) => (
-              <path
-                key={`${row}-${col}`}
-                d={`M${col * 16 + (row % 2) * 8 - 8} ${row * 16 + 16}a8 8 0 0 1 16 0z`}
-                fill={(row + col) % 2 ? a : b}
-              />
-            )),
-          )}
-          <circle cx="32" cy="32" r="6" fill={c} />
-        </>
-      );
-      break;
-    default: // nested diamonds
-      art = (
-        <>
-          <path d="M32 4l28 28-28 28L4 32z" fill={a} />
-          <path d="M32 14l18 18-18 18-18-18z" fill={b} />
-          <path d="M32 24l8 8-8 8-8-8z" fill={c} />
-        </>
-      );
+export function Avatar({
+  name,
+  src,
+  large,
+}: {
+  name: string;
+  src?: string;
+  large?: boolean;
+}) {
+  const cls = large ? "avatar avatar-lg" : "avatar";
+  if (src) {
+    return <img className={cls} src={sized(src, large ? 400 : 200)} alt={name} loading="lazy" />;
   }
   return (
-    <svg
-      className={large ? "tile tile-lg" : "tile"}
-      viewBox="0 0 64 64"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <rect width="64" height="64" fill={bg} />
-      {art}
-    </svg>
+    <span className={cls} aria-hidden="true">
+      {initials(name)}
+    </span>
   );
 }
 
-/** The braidedU mark: one wax-print fan. */
+/** The braidedU mark: a front-facing silhouette with a braided bun. */
 export function Mark() {
   return (
-    <svg viewBox="0 0 26 26" aria-hidden="true" focusable="false">
-      <rect width="26" height="26" fill={GREEN} />
-      <path d="M0 26V0a26 26 0 0 1 26 26z" fill={YELLOW} />
-      <path d="M0 26V8a18 18 0 0 1 18 18z" fill={INK} />
-      <circle cx="19" cy="7" r="3.5" fill={WHITE} />
+    <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id="mk-c">
+          <circle cx="50" cy="50" r="48" />
+        </clipPath>
+        <clipPath id="mk-f">
+          <path d="M8 100 C12 88 28 82 42 79 L42 66 L58 66 L58 79 C72 82 88 88 92 100 Z" />
+          <ellipse cx="50" cy="50" rx="15.5" ry="19" />
+          <path d="M33 50 C32 30 40 24 50 24 C60 24 68 30 67 50 C64 38 58 34 50 34 C42 34 36 38 33 50Z" />
+          <circle cx="50" cy="16" r="12" />
+        </clipPath>
+      </defs>
+      <circle cx="50" cy="50" r="48" fill="#3f6b57" />
+      <g clipPath="url(#mk-c)">
+        <g fill="#efd9a3">
+          <path d="M8 100 C12 88 28 82 42 79 L42 66 L58 66 L58 79 C72 82 88 88 92 100 Z" />
+          <ellipse cx="50" cy="50" rx="15.5" ry="19" />
+          <path d="M33 50 C32 30 40 24 50 24 C60 24 68 30 67 50 C64 38 58 34 50 34 C42 34 36 38 33 50Z" />
+          <circle cx="50" cy="16" r="12" />
+        </g>
+        <g clipPath="url(#mk-f)" fill="none" stroke="#3f6b57" strokeWidth="2.8" strokeLinecap="round">
+          <path d="M50 35 C50 29 50 25 50 22" />
+          <path d="M44 36 C44 30 46 26 47 22" />
+          <path d="M56 36 C56 30 54 26 53 22" />
+          <path d="M39 39 C39 32 42 27 44 23" />
+          <path d="M61 39 C61 32 58 27 56 23" />
+          <path d="M50 6 C60 6 63 16 56 21 C50 25 42 20 45 14 C47 10 53 11 53 15" />
+        </g>
+      </g>
     </svg>
   );
-}
-
-export function WaxBand() {
-  return <div className="wax-band" aria-hidden="true" />;
-}
-
-export function DemoBadge() {
-  return <span className="pill pill-demo">Demo profile</span>;
 }
 
 export function Stars({ rating }: { rating: number | null }) {
@@ -223,11 +165,19 @@ export function PriceTag({
 export function BraiderRow({ braider }: { braider: Braider }) {
   const active = braider.listings.filter((l) => l.is_active);
   const where = braider.campus_area ? campusLabel(braider.campus_area) : "On campus";
-  const shown = active.slice(0, 4);
+  const shown = active.slice(0, 3);
   return (
-    <article className="braider-row">
-      <Avatar name={braider.display_name} />
-      <div>
+    <article className="braider-card">
+      <Link to={`/braiders/${braider.id}`} className="photo-frame" aria-label={`${braider.display_name}'s profile`}>
+        {braider.photo_url ? (
+          <img src={sized(braider.photo_url, 700)} alt="" loading="lazy" />
+        ) : (
+          <span className="photo-empty" aria-hidden="true">
+            {initials(braider.display_name)}
+          </span>
+        )}
+      </Link>
+      <div className="body">
         <h3>
           <Link to={`/braiders/${braider.id}`}>{braider.display_name}</Link>
         </h3>
@@ -236,8 +186,8 @@ export function BraiderRow({ braider }: { braider: Braider }) {
           {braider.years_experience > 0 && `, ${braider.years_experience} yrs braiding`}
           {braider.match_score !== undefined && `, match ${braider.match_score}/100`}
         </div>
-        <div style={{ marginTop: "0.3rem" }}>
-          {braider.is_demo && <DemoBadge />} <Stars rating={braider.average_rating} />
+        <div>
+          <Stars rating={braider.average_rating} />
           {braider.review_count > 0 && <span className="muted"> ({braider.review_count})</span>}
         </div>
         <div className="labels">
@@ -262,11 +212,6 @@ export function BraiderRow({ braider }: { braider: Braider }) {
           )}
         </div>
       </div>
-      <div className="go">
-        <Link to={`/braiders/${braider.id}`} className="btn btn-ghost btn-sm">
-          View profile
-        </Link>
-      </div>
     </article>
   );
 }
@@ -274,6 +219,11 @@ export function BraiderRow({ braider }: { braider: Braider }) {
 export function ListingRow({ listing }: { listing: Listing }) {
   return (
     <div className="listing">
+      {listing.photo_url ? (
+        <img className="thumb" src={sized(listing.photo_url, 240)} alt="" loading="lazy" />
+      ) : (
+        <span className="thumb" aria-hidden="true" />
+      )}
       <div>
         <strong>{listing.title}</strong>
         <div className="muted">

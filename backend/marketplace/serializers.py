@@ -9,8 +9,19 @@ from .models import (
     BraidStyle,
     ClientProfile,
     Listing,
+    Photo,
     Review,
 )
+
+
+def own_photo_url(request, value):
+    """A photo link is only accepted if this user uploaded it."""
+    if not value:
+        return value
+    user = getattr(request, "user", None)
+    if not user or not Photo.objects.filter(owner=user, url=value).exists():
+        raise serializers.ValidationError("Upload the photo first, then use its link.")
+    return value
 
 
 class BraidStyleSerializer(serializers.ModelSerializer):
@@ -25,15 +36,19 @@ class ListingSerializer(serializers.ModelSerializer):
     braider_is_demo = serializers.BooleanField(source="braider.is_demo", read_only=True)
     campus_area = serializers.CharField(source="braider.campus_area", read_only=True)
     style_name = serializers.CharField(source="style.name", read_only=True)
+    photo_url = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
     class Meta:
         model = Listing
         fields = [
             "id", "braider", "braider_id", "braider_name", "braider_is_demo",
             "campus_area", "style", "style_name", "title", "description",
-            "price", "duration_minutes", "is_active", "created_at", "updated_at",
+            "price", "duration_minutes", "photo_url", "is_active", "created_at", "updated_at",
         ]
         read_only_fields = ["braider", "created_at", "updated_at"]
+
+    def validate_photo_url(self, value):
+        return own_photo_url(self.context.get("request"), value)
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -41,7 +56,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = ["id", "booking", "client_name", "rating", "comment", "created_at"]
+        fields = ["id", "booking", "client_name", "rating", "comment", "photo_urls", "created_at"]
         read_only_fields = ["booking", "created_at"]
 
 
@@ -51,12 +66,13 @@ class BraiderProfileSerializer(serializers.ModelSerializer):
     average_rating = serializers.FloatField(read_only=True)
     review_count = serializers.IntegerField(read_only=True)
     reviews = ReviewSerializer(many=True, read_only=True)
+    photo_url = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
     class Meta:
         model = BraiderProfile
         fields = [
             "id", "username", "display_name", "bio", "campus_area",
-            "location_detail", "instagram", "years_experience",
+            "location_detail", "instagram", "photo_url", "years_experience",
             "available_days", "available_start_time", "available_end_time",
             "is_active", "is_demo", "average_rating", "review_count",
             "listings", "reviews", "created_at",
@@ -68,6 +84,9 @@ class BraiderProfileSerializer(serializers.ModelSerializer):
         if bad:
             raise serializers.ValidationError(f"Invalid weekdays: {bad}. Use {WEEKDAYS}.")
         return value
+
+    def validate_photo_url(self, value):
+        return own_photo_url(self.context.get("request"), value)
 
     def validate_campus_area(self, value):
         if value and value not in dict(CAMPUS_AREAS):

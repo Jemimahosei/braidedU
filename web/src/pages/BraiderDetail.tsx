@@ -9,10 +9,11 @@ import {
   formatTime,
   todayISO,
   WEEKDAYS,
+  sized,
   type Braider,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, DemoBadge, ListingRow, Stars } from "../components/ui";
+import { Avatar, ListingRow, Stars } from "../components/ui";
 
 export default function BraiderDetail() {
   const { id } = useParams();
@@ -80,7 +81,7 @@ export default function BraiderDetail() {
           <div style={{ flex: "2 1 480px" }} className="stack">
             <div className="panel">
               <div className="row" style={{ alignItems: "center" }}>
-                <Avatar name={braider.display_name} large />
+                <Avatar name={braider.display_name} src={braider.photo_url} large />
                 <div>
                   <h1>{braider.display_name}</h1>
                   <div className="meta">
@@ -88,7 +89,7 @@ export default function BraiderDetail() {
                     {braider.location_detail ? `, ${braider.location_detail}` : ""}
                   </div>
                   <div style={{ marginTop: "0.35rem" }}>
-                    {braider.is_demo && <DemoBadge />} <Stars rating={braider.average_rating} />
+                    <Stars rating={braider.average_rating} />
                     {braider.review_count > 0 && <span className="muted"> ({braider.review_count} reviews)</span>}
                   </div>
                 </div>
@@ -117,7 +118,7 @@ export default function BraiderDetail() {
             {activeListings.length === 0 ? (
               <p className="muted">No listings yet.</p>
             ) : (
-              <div style={{ borderTop: "6px solid var(--ink)" }}>
+              <div>
                 {activeListings.map((l) => (
                   <ListingRow key={l.id} listing={l} />
                 ))}
@@ -133,6 +134,15 @@ export default function BraiderDetail() {
                   <div key={r.id} className="card">
                     <Stars rating={r.rating} /> <strong>{r.client_name}</strong>
                     {r.comment && <p style={{ margin: "0.4rem 0 0" }}>{r.comment}</p>}
+                    {r.photo_urls?.length > 0 && (
+                      <div className="review-photos">
+                        {r.photo_urls.map((u) => (
+                          <a key={u} href={u} target="_blank" rel="noreferrer">
+                            <img src={sized(u, 240)} alt="Photo from this review" loading="lazy" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

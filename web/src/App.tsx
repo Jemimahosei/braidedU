@@ -1,6 +1,6 @@
 import { HashRouter, Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { Mark, WaxBand } from "./components/ui";
+import { Mark } from "./components/ui";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import BraiderDetail from "./pages/BraiderDetail";
@@ -75,15 +75,14 @@ export default function App() {
           </Routes>
         </main>
         <footer className="site-footer">
-          <WaxBand />
           <div className="wrap">
             <p>
               <strong>braidedU</strong> is a campus marketplace for braiding
               services, built by a Cornell student for Black women on campus.
             </p>
             <p>
-              A free community project. Listings marked “Demo profile” are seeded
-              examples, not real people.
+              A free community project. Every profile is a real braider who
+              chose to be here.
             </p>
           </div>
         </footer>
