@@ -93,3 +93,92 @@ def send_reset(user):
         f"Choose a new password here:\n{link}\n\nThe link works for 1 hour and only once. "
         "If you didn't ask for this, ignore this email.",
     )
+
+
+# ---------------------------------------------------------------- bookings
+
+
+def _when(b):
+    return f"{b.date:%a %b %-d} at {b.start_time:%-I:%M %p}"
+
+
+def _site():
+    return f"{frontend_url()}/#/dashboard"
+
+
+def booking_requested(b):
+    send_email(
+        b.braider.user.email,
+        f"New booking request from {b.client.display_name}",
+        f"{b.client.display_name} asked for {b.listing.title} on {_when(b)}.\n"
+        f"Accept or decline here: {_site()}",
+    )
+
+
+def booking_accepted(b):
+    send_email(
+        b.client.user.email,
+        f"{b.braider.display_name} accepted your booking",
+        f"Good news: {b.braider.display_name} accepted {b.listing.title} on {_when(b)}.\n"
+        f"Open braidedU to see where to pay and the details: {_site()}\n\n"
+        "Venmo and Zelle have no buyer protection, so only pay the handle shown in your booking.",
+    )
+
+
+def booking_declined(b):
+    send_email(
+        b.client.user.email,
+        f"{b.braider.display_name} can't make that time",
+        f"{b.braider.display_name} declined {b.listing.title} on {_when(b)}. "
+        f"Pick another time or braider: {frontend_url()}/#/browse",
+    )
+
+
+def client_says_paid(b):
+    send_email(
+        b.braider.user.email,
+        f"{b.client.display_name} says they paid",
+        f"{b.client.display_name} marked {b.listing.title} on {_when(b)} as paid. "
+        f"Check your Venmo or Zelle, then confirm in braidedU: {_site()}",
+    )
+
+
+def payment_received(b):
+    send_email(
+        b.client.user.email,
+        f"Receipt: {b.listing.title} with {b.braider.display_name}",
+        f"{b.braider.display_name} confirmed your payment of ${b.listing.price:.0f}.\n"
+        f"Appointment: {b.listing.title}, {_when(b)} ({b.listing.duration_minutes} min).\n"
+        f"Receipt #{b.id}. Your booking: {_site()}",
+    )
+
+
+def booking_cancelled(b, by):
+    if by == "client":
+        to, who = b.braider.user.email, b.client.display_name
+        extra = " This was inside your cancel window." if b.late_cancel else ""
+    else:
+        to, who = b.client.user.email, b.braider.display_name
+        extra = f" Reason: {b.cancel_reason}" if b.cancel_reason else ""
+    send_email(to, f"Booking cancelled by {who}", f"{who} cancelled {b.listing.title} on {_when(b)}.{extra}")
+
+
+def booking_rescheduled(b):
+    send_email(
+        b.braider.user.email,
+        f"{b.client.display_name} asked to move their booking",
+        f"{b.client.display_name} asked to move {b.listing.title} to {_when(b)}. "
+        f"Accept or decline: {_site()}",
+    )
+
+
+def booking_reminder(b):
+    place = ""
+    if b.place in ("", "my_place") and b.braider.private_address:
+        place = f"\nWhere: {b.braider.private_address}"
+    send_email(
+        b.client.user.email,
+        f"Reminder: braids with {b.braider.display_name} tomorrow",
+        f"{b.listing.title} is tomorrow, {_when(b)}.{place}\n"
+        f"Her rules: {b.braider.policy_text or 'none listed'}\nDetails: {_site()}",
+    )

@@ -25,6 +25,7 @@ export default function BraiderDetail() {
   const [time, setTime] = useState("");
   const [slots, setSlots] = useState<string[] | null>(null);
   const [notes, setNotes] = useState("");
+  const [place, setPlace] = useState("");
   const [bookingMsg, setBookingMsg] = useState("");
   const [bookingErr, setBookingErr] = useState("");
   const { user } = useAuth();
@@ -76,6 +77,7 @@ export default function BraiderDetail() {
         date,
         start_time: time,
         notes,
+        place,
       });
       setBookingMsg(
         `Request sent for ${formatDate(booking.date)} at ${formatTime(booking.start_time)}. ${braider?.display_name} will accept or decline. Watch your dashboard for the answer.`,
@@ -227,6 +229,17 @@ export default function BraiderDetail() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+                  {braider.service_places?.length > 0 && (
+                    <div>
+                      <label htmlFor="bk-place">Where</label>
+                      <select id="bk-place" required value={place} onChange={(e) => setPlace(e.target.value)}>
+                        <option value="">Pick one</option>
+                        {braider.service_places.map((p) => (
+                          <option key={p} value={p}>{SERVICE_PLACES[p] || p}</option>
+                        ))}
+                      </select>
                     </div>
                   )}
                   <div>

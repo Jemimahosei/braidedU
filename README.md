@@ -19,7 +19,7 @@ reputation through reviews. No more chasing DMs.
 | `/braiders/:id` | Braider profile: bio, hours, where she braids, her rules, priced listings, reviews, booking form with open times only | Everyone (booking needs a client account) |
 | `/signup`, `/login` | Create an account with a Cornell email (client or braider), log in | Everyone |
 | `/confirm?token=`, `/forgot`, `/reset?token=` | Email confirmation, forgot password, choose a new password | Everyone |
-| `/dashboard` | Client: upcoming and past appointments, cancel, review. Braider: requests, schedule, listings, profile | Signed in |
+| `/dashboard` | Client: appointments, pay info after accept, "I've paid", change time, cancel, receipt, review. Braider: requests, schedule (payment received, complete, cancel), listings, profile and rules | Signed in |
 
 ## Stack
 
@@ -85,7 +85,10 @@ Base: `/api/`. Auth: `Authorization: Token <key>`.
 - `GET|POST /api/braiders/me/time-off/` `{start_date, end_date, note}` · `DELETE /api/braiders/me/time-off/<id>/`
 - `GET /api/clients/me/` · `PATCH /api/clients/me/` — client profile
 - `GET /api/bookings/?status=` · `POST /api/bookings/` `{listing, date, start_time, notes}`
-- `POST /api/bookings/<id>/accept|decline|complete/` — braider; `cancel/` — client
+- `POST /api/bookings/<id>/accept|decline|complete|payment-received/` — braider; `braider-cancel/ {reason}` — braider
+- `POST /api/bookings/<id>/paid/ {screenshot_url?}` · `cancel/ {reason?}` · `reschedule/ {date, start_time}` — client. Cancelling inside the braider's cancel window sets `late_cancel`; rescheduling is blocked inside it and sends the booking back to `requested`
+- `GET /api/bookings/<id>/receipt/` — either party, once payment is confirmed
+- Booking `status`: `requested → accepted → paid (client says paid) → confirmed (braider got it) → completed`, or `declined` / `cancelled`. `pay` (Venmo, Zelle, deposit note) and `address` appear on a booking only from `accepted` on; they are never in public profile output
 - `POST /api/bookings/<id>/review/` `{rating 1-5, comment}` — client, completed only
 - `GET /api/braiders/<id>/reviews/` — public
 - `PATCH /api/braiders/me/` and `POST /api/listings/` accept `photo_url`; `POST /api/bookings/<id>/review/` accepts `photo_urls` (up to 4). A photo link is accepted only if that user uploaded it.
@@ -96,6 +99,13 @@ Booking rules: a request must start at one of the open times from `/slots/` (ins
 her hours, a day she works, not on time off, not in the past, long enough for the
 style, and clear of accepted bookings plus her rest time); reviews only after completion,
 one per booking.
+
+## Day-before reminders
+
+`python manage.py send_reminders` emails clients about tomorrow's accepted
+bookings (once each, skipping braiders who turned reminders off). It needs to
+run once a day. Render's free plan has no cron, so until a scheduler is set up
+run it by hand or from any free scheduler that can run a command.
 
 ## Environment variables
 
@@ -135,5 +145,5 @@ styles (one column, scrolling nav, large tap targets).
 
 ```bash
 cd backend
-.venv/bin/python manage.py test marketplace   # 38 tests
+.venv/bin/python manage.py test marketplace   # 49 tests
 ```
