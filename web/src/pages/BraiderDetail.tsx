@@ -117,7 +117,7 @@ export default function BraiderDetail() {
             {activeListings.length === 0 ? (
               <p className="muted">No listings yet.</p>
             ) : (
-              <div style={{ borderTop: "2px solid var(--ink)" }}>
+              <div style={{ borderTop: "6px solid var(--ink)" }}>
                 {activeListings.map((l) => (
                   <ListingRow key={l.id} listing={l} />
                 ))}
