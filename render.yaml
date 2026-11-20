@@ -20,6 +20,12 @@ services:
       # — data resets on redeploy, fine for a demo, not for real users).
       - key: DATABASE_URL
         sync: false
+      - key: FRONTEND_URL
+        value: https://braidedu-frontend.onrender.com
+      # Email: when set, confirmation and reset emails go out through Resend;
+      # unset, they are printed to the server log.
+      - key: RESEND_API_KEY
+        sync: false
 
   - type: web
     name: braidedu-frontend

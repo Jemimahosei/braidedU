@@ -4,7 +4,7 @@ import { Mark } from "./components/ui";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import BraiderDetail from "./pages/BraiderDetail";
-import { Login, Signup } from "./pages/Auth";
+import { Confirm, Forgot, Login, Reset, Signup } from "./pages/Auth";
 import ClientDashboard from "./pages/ClientDashboard";
 import BraiderDashboard from "./pages/BraiderDashboard";
 
@@ -70,6 +70,9 @@ export default function App() {
             <Route path="/braiders/:id" element={<BraiderDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/confirm" element={<Confirm />} />
+            <Route path="/forgot" element={<Forgot />} />
+            <Route path="/reset" element={<Reset />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

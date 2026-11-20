@@ -17,7 +17,8 @@ reputation through reviews. No more chasing DMs.
 | `/` | Home: find-a-braider search, styles with lowest prices, featured braiders, how booking works | Everyone |
 | `/browse` | Filter braiders by style, date, campus area and budget; ranked when a style and date are chosen | Everyone |
 | `/braiders/:id` | Braider profile: bio, hours, priced listings, reviews, booking form | Everyone (booking needs a client account) |
-| `/signup`, `/login` | Create an account as a client or a braider | Everyone |
+| `/signup`, `/login` | Create an account with a Cornell email (client or braider), log in | Everyone |
+| `/confirm?token=`, `/forgot`, `/reset?token=` | Email confirmation, forgot password, choose a new password | Everyone |
 | `/dashboard` | Client: upcoming and past appointments, cancel, review. Braider: requests, schedule, listings, profile | Signed in |
 
 ## Stack
@@ -66,8 +67,11 @@ people who sign up. Photos go on the site only after the person has agreed.
 
 Base: `/api/`. Auth: `Authorization: Token <key>`.
 
-- `POST /api/auth/register/` `{username, password, role: braider|client, display_name?}`
-- `POST /api/auth/login/` → `{token, username, role, profile_id}`
+- `POST /api/auth/register/` `{email (@cornell.edu), password (8+), role: braider|client, display_name?}` → sends a confirmation email; no token yet
+- `POST /api/auth/confirm/` `{token}` → `{token, username, role, profile_id}` (activates the account)
+- `POST /api/auth/resend/` `{email}` · `POST /api/auth/password-reset/` `{email}` (same answer for unknown emails)
+- `POST /api/auth/password-reset/confirm/` `{token, password}` — single use, 1 hour
+- `POST /api/auth/login/` `{username: email, password}` → `{token, username, role, profile_id}`; 403 until the email is confirmed
 - `GET /api/styles/` — braid styles (public)
 - `GET /api/braiders/?style=&campus_area=` — public, paginated
 - `GET /api/braiders/<id>/` — profile with listings + reviews (public)
@@ -101,6 +105,9 @@ one per booking.
 | `DJANGO_CORS_ALLOW_ALL` | `1`/`0`, default `1` when DEBUG else `0` |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | Comma-separated origins when not allow-all |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Photo storage (Cloudinary free plan). All three set → photos upload to Cloudinary and are served resized and compressed. Unset → saved to local disk (development only; Render wipes it on redeploy) |
+| `RESEND_API_KEY` | Email sending through Resend. Unset → emails are printed to the server log. Until a domain is verified at Resend, the test sender can only deliver to the Resend account owner's own address |
+| `RESEND_FROM` | Sender, default `braidedU <onboarding@resend.dev>`; change once a domain is verified |
+| `FRONTEND_URL` | Base URL used in emailed links (default: the Render site when `DJANGO_DEBUG=0`) |
 | `VITE_API_URL` | API base URL baked into the website build |
 
 ## Photos
@@ -125,5 +132,5 @@ styles (one column, scrolling nav, large tap targets).
 
 ```bash
 cd backend
-.venv/bin/python manage.py test marketplace   # 24 tests
+.venv/bin/python manage.py test marketplace   # 32 tests
 ```
