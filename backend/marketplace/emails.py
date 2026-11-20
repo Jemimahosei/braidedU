@@ -182,3 +182,27 @@ def booking_reminder(b):
         f"{b.listing.title} is tomorrow, {_when(b)}.{place}\n"
         f"Her rules: {b.braider.policy_text or 'none listed'}\nDetails: {_site()}",
     )
+
+
+def new_message(sender, recipient, body):
+    from .views_social import person
+
+    name = person(sender)[0]
+    snippet = (body[:200] + "…") if len(body) > 200 else body
+    send_email(
+        recipient.email,
+        f"New message from {name}",
+        f"{name} wrote:\n\n{snippet or '(a photo)'}\n\nReply on braidedU: {frontend_url()}/#/messages/{sender.id}",
+    )
+
+
+def report_filed(report):
+    to = os.environ.get("REPORT_EMAIL")
+    if not to:
+        return
+    send_email(
+        to,
+        f"braidedU report: {report.reason}",
+        f"{report.reporter.username} reported {report.reported.username}\n"
+        f"Reason: {report.reason}\n\n{report.detail}",
+    )

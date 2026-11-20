@@ -139,6 +139,9 @@ export default function ClientDashboard() {
       )}
       <div className="grow" />
       <div className="row" style={{ gap: "0.5rem" }}>
+        <Link to={`/messages/${b.braider_user_id}`} className="btn btn-light btn-sm">
+          Message
+        </Link>
         {live.includes(b.status) && (
           <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMoveFor(moveFor === b.id ? null : b.id)}>
             Change time

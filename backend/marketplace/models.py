@@ -192,6 +192,9 @@ class Review(models.Model):
     rating = models.PositiveSmallIntegerField()
     comment = models.TextField(blank=True)
     photo_urls = models.JSONField(default=list, blank=True)
+    # The braider's one public answer to this review.
+    braider_reply = models.TextField(blank=True)
+    replied_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -243,3 +246,51 @@ class TimeOff(models.Model):
 
     def __str__(self):
         return f"{self.braider} off {self.start_date} to {self.end_date}"
+
+
+class Message(models.Model):
+    """A note between two people. Saved here; the recipient also gets an email."""
+
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="messages_sent")
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="messages_received")
+    body = models.TextField(max_length=2000)
+    photo_url = models.CharField(max_length=500, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
+class Block(models.Model):
+    """blocker does not want to hear from, or book with, blocked."""
+
+    blocker = models.ForeignKey(User, on_delete=models.CASCADE, related_name="blocks_made")
+    blocked = models.ForeignKey(User, on_delete=models.CASCADE, related_name="blocks_received")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("blocker", "blocked")]
+
+
+REPORT_REASONS = [
+    ("harassment", "Harassment or unsafe behavior"),
+    ("no_show", "No-show or repeated cancelling"),
+    ("scam", "Scam or payment problem"),
+    ("fake", "Fake profile or photos"),
+    ("other", "Something else"),
+]
+
+
+class Report(models.Model):
+    """A report about a person. Read by the site owner in the Django admin."""
+
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reports_made")
+    reported = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reports_received")
+    reason = models.CharField(max_length=20, choices=REPORT_REASONS)
+    detail = models.TextField(blank=True, max_length=2000)
+    handled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]

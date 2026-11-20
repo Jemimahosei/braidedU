@@ -14,13 +14,14 @@ import {
   type BraidStyle,
   type Listing,
 } from "../lib/api";
+import { Link } from "react-router-dom";
 import { StatusPill, Stars, Avatar } from "../components/ui";
 import { PhotoField } from "../components/PhotoField";
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export default function BraiderDashboard() {
-  const [tab, setTab] = useState<"requests" | "schedule" | "listings" | "profile">("requests");
+  const [tab, setTab] = useState<"requests" | "schedule" | "reviews" | "listings" | "profile">("requests");
   const [profile, setProfile] = useState<Braider | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
@@ -33,6 +34,8 @@ export default function BraiderDashboard() {
   const [newPrice, setNewPrice] = useState("");
   const [newDuration, setNewDuration] = useState("180");
   const [newDesc, setNewDesc] = useState("");
+  const [replyId, setReplyId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
   const [cancelId, setCancelId] = useState<number | null>(null);
   const [cancelWhy, setCancelWhy] = useState("");
   const [timeOff, setTimeOff] = useState<TimeOff[]>([]);
@@ -164,7 +167,7 @@ export default function BraiderDashboard() {
         {notice && <p className="notice" style={{ marginTop: "1rem" }}>{notice}</p>}
 
         <div className="tabs" style={{ marginTop: "1.5rem" }}>
-          {(["requests", "schedule", "listings", "profile"] as const).map((t) => (
+          {(["requests", "schedule", "reviews", "listings", "profile"] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -200,6 +203,9 @@ export default function BraiderDashboard() {
                 {b.notes && <p className="muted">“{b.notes}”</p>}
                 <div className="grow" />
                 <div className="row" style={{ gap: "0.5rem" }}>
+                  <Link to={`/messages/${b.client_user_id}`} className="btn btn-light btn-sm">
+                    Message
+                  </Link>
                   <button className="btn btn-sm" type="button" onClick={() => act(b.id, "accept")}>
                     Accept
                   </button>
@@ -238,6 +244,9 @@ export default function BraiderDashboard() {
                   </p>
                 )}
                 <div className="row" style={{ gap: "0.5rem" }}>
+                  <Link to={`/messages/${b.client_user_id}`} className="btn btn-light btn-sm">
+                    Message
+                  </Link>
                   {(b.status === "accepted" || b.status === "paid") && (
                     <button className="btn btn-sm" type="button" onClick={() => act(b.id, "payment-received")}>
                       Payment received
@@ -268,6 +277,42 @@ export default function BraiderDashboard() {
                     <input id={`cw-${b.id}`} value={cancelWhy} onChange={(e) => setCancelWhy(e.target.value)} />
                     <button className="btn btn-sm btn-danger" type="submit">Cancel and tell them</button>
                   </form>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+
+        {tab === "reviews" && (
+          <div className="stack">
+            {(profile?.reviews ?? []).length === 0 && <p className="muted">No reviews yet. They appear here after clients finish an appointment.</p>}
+            {(profile?.reviews ?? []).map((r) => (
+              <article key={r.id} className="card">
+                <div><Stars rating={r.rating} /> <strong>{r.client_name}</strong></div>
+                {r.comment && <p>{r.comment}</p>}
+                {r.braider_reply ? (
+                  <div className="reply"><strong>Your reply</strong><p>{r.braider_reply}</p></div>
+                ) : replyId === r.id ? (
+                  <form
+                    className="stack"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await api.replyToReview(r.id, replyText);
+                        setReplyId(null);
+                        setReplyText("");
+                        load();
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Could not post the reply.");
+                      }
+                    }}
+                  >
+                    <label htmlFor={`rr-${r.id}`}>Your public reply</label>
+                    <textarea id={`rr-${r.id}`} rows={2} value={replyText} onChange={(e) => setReplyText(e.target.value)} required />
+                    <button className="btn btn-sm" type="submit">Post reply</button>
+                  </form>
+                ) : (
+                  <button className="link-btn" type="button" onClick={() => setReplyId(r.id)}>Reply publicly</button>
                 )}
               </article>
             ))}
@@ -480,6 +525,24 @@ export default function BraiderDashboard() {
             </button>
             <button className="btn" type="submit">
               Save profile
+            </button>
+            <hr className="hr" />
+            <button
+              type="button"
+              className="link-btn danger"
+              style={{ justifySelf: "start" }}
+              onClick={async () => {
+                if (!window.confirm("Remove every photo you uploaded, from your page and from storage? This can't be undone.")) return;
+                try {
+                  const r = await api.deleteAllMyPhotos();
+                  setNotice(`Removed ${r.removed} photo${r.removed === 1 ? "" : "s"}.`);
+                  load();
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Could not remove photos.");
+                }
+              }}
+            >
+              Remove all my photos
             </button>
           </form>
         )}

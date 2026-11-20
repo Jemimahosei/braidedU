@@ -17,6 +17,7 @@ reputation through reviews. No more chasing DMs.
 | `/` | Home: find-a-braider search, styles with lowest prices, featured braiders, how booking works | Everyone |
 | `/browse` | Filter braiders by style, date, campus area and budget; ranked when a style and date are chosen | Everyone |
 | `/braiders/:id` | Braider profile: bio, hours, where she braids, her rules, priced listings, reviews, booking form with open times only | Everyone (booking needs a client account) |
+| `/messages`, `/messages/:userId` | Conversations with an email notice to the other person, photo sharing, report and block | Signed in |
 | `/signup`, `/login` | Create an account with a Cornell email (client or braider), log in | Everyone |
 | `/confirm?token=`, `/forgot`, `/reset?token=` | Email confirmation, forgot password, choose a new password | Everyone |
 | `/dashboard` | Client: appointments, pay info after accept, "I've paid", change time, cancel, receipt, review. Braider: requests, schedule (payment received, complete, cancel), listings, profile and rules | Signed in |
@@ -92,6 +93,11 @@ Base: `/api/`. Auth: `Authorization: Token <key>`.
 - `POST /api/bookings/<id>/review/` `{rating 1-5, comment}` — client, completed only
 - `GET /api/braiders/<id>/reviews/` — public
 - `PATCH /api/braiders/me/` and `POST /api/listings/` accept `photo_url`; `POST /api/bookings/<id>/review/` accepts `photo_urls` (up to 4). A photo link is accepted only if that user uploaded it.
+- `GET /api/messages/` (conversations) · `GET /api/messages/unread/` · `GET|POST /api/messages/<user_id>/` `{body, photo_url?}` — a client can write to any braider; a braider can write to a client once they share a booking or the client wrote first. One email per burst of unread messages
+- `POST|DELETE /api/blocks/<user_id>/` — a block stops messages and bookings both ways and declines pending requests between the two
+- `POST /api/reports/` `{user_id, reason: harassment|no_show|scam|fake|other, detail?}` — read in the Django admin (and emailed to `REPORT_EMAIL` if set)
+- `POST /api/reviews/<id>/reply/` `{reply}` — the reviewed braider's one public reply
+- `DELETE /api/photos/mine/` — removes every photo you uploaded, from storage and from your page
 - `POST /api/photos/` multipart `{image, kind: profile|work|review|message|reference}` → `{id, url, thumb_url, large_url}` — signed in; JPG/PNG/WebP/GIF up to 10 MB
 - `DELETE /api/photos/<id>/` — owner only; removes the file from storage too
 
@@ -120,6 +126,7 @@ run it by hand or from any free scheduler that can run a command.
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Photo storage (Cloudinary free plan). All three set → photos upload to Cloudinary and are served resized and compressed. Unset → saved to local disk (development only; Render wipes it on redeploy) |
 | `RESEND_API_KEY` | Email sending through Resend. Unset → emails are printed to the server log. Until a domain is verified at Resend, the test sender can only deliver to the Resend account owner's own address |
 | `RESEND_FROM` | Sender, default `braidedU <onboarding@resend.dev>`; change once a domain is verified |
+| `REPORT_EMAIL` | Optional. Where new reports are emailed. Reports are always visible in the Django admin |
 | `FRONTEND_URL` | Base URL used in emailed links (default: the Render site when `DJANGO_DEBUG=0`) |
 | `VITE_API_URL` | API base URL baked into the website build |
 
@@ -145,5 +152,5 @@ styles (one column, scrolling nav, large tap targets).
 
 ```bash
 cd backend
-.venv/bin/python manage.py test marketplace   # 49 tests
+.venv/bin/python manage.py test marketplace   # 56 tests
 ```
