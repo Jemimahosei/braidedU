@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: kormo_mela
-      POSTGRES_USER: kormo
-      POSTGRES_PASSWORD: kormo
+      POSTGRES_DB: braidedu
+      POSTGRES_USER: braidedu
+      POSTGRES_PASSWORD: braidedu
     ports:
       - "5432:5432"
     volumes:
@@ -16,7 +16,7 @@ services:
       sh -c "python manage.py migrate && python manage.py seed_demo
       && python manage.py runserver 0.0.0.0:8000"
     environment:
-      DATABASE_URL: postgres://kormo:kormo@db:5432/kormo_mela
+      DATABASE_URL: postgres://braidedu:braidedu@db:5432/braidedu
       DJANGO_DEBUG: "1"
       DJANGO_ALLOWED_HOSTS: "*"
     ports:

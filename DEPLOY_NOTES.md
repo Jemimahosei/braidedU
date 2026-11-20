@@ -1,4 +1,4 @@
-# Kormo Mela rebuild — deploy notes for the parent
+# braidedU (formerly Kormo Mela) — deploy notes
 
 ## What was built (Nov 5–6, 2026, overnight)
 
@@ -63,8 +63,8 @@ The Expo web-export path was tried first, as instructed:
 
 ### Repo/deploy files
 
-- `render.yaml` at project root: `kormo-mela-backend` (Python, gunicorn,
-  `migrate && seed_demo` on start) + `kormo-mela-frontend` (static,
+- `render.yaml` at project root: `braidedu-backend` (Python, gunicorn,
+  `migrate && seed_demo` on start) + `braidedu-frontend` (static,
   `web/dist`). `DATABASE_URL` is `sync: false` — set by hand in Render.
 - `README.md` at project root. `docker-compose.yml` (Postgres + backend)
   left as-is for local Docker dev.
@@ -99,7 +99,7 @@ The Expo web-export path was tried first, as instructed:
 2. Render: create a Blueprint from the repo (uses `render.yaml`).
    First deploy seeds the demo data automatically.
 3. **Check the backend URL.** Render may suffix it (like Gradebook's
-   `-0l4v`). If `https://kormo-mela-backend.onrender.com` is not the real
+   `-0l4v`). If `https://braidedu-backend.onrender.com` is not the real
    URL, update `VITE_API_URL` in `render.yaml`, push, and redeploy the
    frontend (the API URL is baked in at build time).
 4. **Database:** with no `DATABASE_URL`, Render runs on SQLite, which is
