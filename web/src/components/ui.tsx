@@ -20,12 +20,14 @@ export function Avatar({
   name,
   src,
   large,
+  small,
 }: {
   name: string;
   src?: string;
   large?: boolean;
+  small?: boolean;
 }) {
-  const cls = large ? "avatar avatar-lg" : "avatar";
+  const cls = large ? "avatar avatar-lg" : small ? "avatar avatar-sm" : "avatar";
   if (src) {
     return <img className={cls} src={sized(src, large ? 400 : 200)} alt={name} loading="lazy" />;
   }

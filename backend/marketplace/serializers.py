@@ -168,6 +168,7 @@ class BookingSerializer(serializers.ModelSerializer):
     cancel_window_hours = serializers.IntegerField(source="braider.cancel_window_hours", read_only=True)
     client_user_id = serializers.IntegerField(source="client.user_id", read_only=True)
     braider_user_id = serializers.IntegerField(source="braider.user_id", read_only=True)
+    braider_photo_url = serializers.CharField(source="braider.photo_url", read_only=True)
 
     class Meta:
         model = Booking
@@ -178,7 +179,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "notes", "place", "paid_at", "payment_confirmed_at",
             "payment_screenshot_url", "cancelled_by", "cancel_reason",
             "late_cancel", "cancel_deadline", "cancel_window_hours",
-            "client_user_id", "braider_user_id", "created_at", "updated_at",
+            "client_user_id", "braider_user_id", "braider_photo_url",
+            "created_at", "updated_at",
         ]
         read_only_fields = [
             "client", "braider", "status", "paid_at", "payment_confirmed_at",
