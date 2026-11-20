@@ -11,7 +11,8 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
@@ -22,8 +23,10 @@ from .models import (
     BraidStyle,
     ClientProfile,
     Listing,
+    Photo,
     Review,
 )
+from . import photos as photo_store
 from .serializers import (
     BookingSerializer,
     BraiderProfileSerializer,
@@ -396,3 +399,51 @@ def reviews_for_braider(request, braider_id):
     braider = get_object_or_404(BraiderProfile, id=braider_id)
     reviews = Review.objects.filter(braider=braider).select_related("client")
     return Response(ReviewSerializer(reviews, many=True).data)
+
+
+# -------------------------------------------------------------- photos
+
+
+def _photo_json(p):
+    return {
+        "id": p.id,
+        "kind": p.kind,
+        "url": p.url,
+        "thumb_url": photo_store.sized_url(p.url, 480),
+        "large_url": photo_store.sized_url(p.url, 1200),
+        "width": p.width,
+        "height": p.height,
+    }
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_photo(request):
+    """Upload one photo (form field ``image``, optional ``kind``)."""
+    upload = request.FILES.get("image")
+    if upload is None:
+        raise ValidationError({"image": "Choose a photo to upload."})
+    kind = request.data.get("kind", "work")
+    if kind not in {k for k, _ in Photo._meta.get_field("kind").choices}:
+        raise ValidationError({"kind": "Unknown photo type."})
+    _fmt, width, height = photo_store.validate_image(upload)
+    url, key = photo_store.store_image(upload, kind, request.user.id)
+    if url.startswith("/"):
+        url = request.build_absolute_uri(url)
+    photo = Photo.objects.create(
+        owner=request.user, kind=kind, url=url, storage_key=key, width=width, height=height
+    )
+    return Response(_photo_json(photo), status=status.HTTP_201_CREATED)
+
+
+@api_view(["DELETE"])
+@permission_classes([permissions.IsAuthenticated])
+def delete_photo(request, photo_id):
+    """Remove one of your own photos, from the database and from storage."""
+    photo = get_object_or_404(Photo, pk=photo_id)
+    if photo.owner_id != request.user.id:
+        raise PermissionDenied("You can only remove your own photos.")
+    photo_store.delete_stored(photo.storage_key)
+    photo.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
