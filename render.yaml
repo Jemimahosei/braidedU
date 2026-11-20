@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: kormo-mela-backend
+    name: braidedu-backend
     env: python
     region: oregon
     plan: free
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && python manage.py migrate && python manage.py seed_demo && gunicorn kormomela.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: cd backend && python manage.py migrate && python manage.py seed_demo && gunicorn braidedu.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
@@ -22,7 +22,7 @@ services:
         sync: false
 
   - type: web
-    name: kormo-mela-frontend
+    name: braidedu-frontend
     env: static
     buildCommand: cd web && npm install && npm run build
     staticPublishPath: web/dist
@@ -33,4 +33,4 @@ services:
       # is taken. After the first deploy, check the real backend URL and
       # update this value + redeploy the frontend if it differs.
       - key: VITE_API_URL
-        value: https://kormo-mela-backend.onrender.com/api
+        value: https://braidedu-backend.onrender.com/api

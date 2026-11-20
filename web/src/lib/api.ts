@@ -96,22 +96,22 @@ function unwrap<T>(data: unknown): T[] {
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem("kormo_token");
+  return localStorage.getItem("braidedu_token");
 }
 
 export function getStoredUser(): AuthUser | null {
-  const raw = localStorage.getItem("kormo_user");
+  const raw = localStorage.getItem("braidedu_user");
   return raw ? (JSON.parse(raw) as AuthUser) : null;
 }
 
 export function storeAuth(token: string, user: AuthUser) {
-  localStorage.setItem("kormo_token", token);
-  localStorage.setItem("kormo_user", JSON.stringify(user));
+  localStorage.setItem("braidedu_token", token);
+  localStorage.setItem("braidedu_user", JSON.stringify(user));
 }
 
 export function clearAuth() {
-  localStorage.removeItem("kormo_token");
-  localStorage.removeItem("kormo_user");
+  localStorage.removeItem("braidedu_token");
+  localStorage.removeItem("braidedu_user");
 }
 
 export class ApiError extends Error {

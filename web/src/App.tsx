@@ -21,7 +21,7 @@ function Header() {
     <header className="site-header">
       <div className="wrap">
         <Link className="brand" to="/">
-          Kormo Mela <small>braids on campus</small>
+          braidedU <small>braids on campus</small>
         </Link>
         <nav className="nav">
           <Link to="/browse">Find a braider</Link>
@@ -77,7 +77,7 @@ export default function App() {
           <div className="wrap">
             <BraidBand />
             <p>
-              <strong style={{ color: "var(--cream)" }}>Kormo Mela</strong> — a campus
+              <strong style={{ color: "var(--cream)" }}>braidedU</strong> — a campus
               marketplace for braiding services, built by a Cornell student for
               Black women on campus. Student braiders, real prices, no chasing DMs.
             </p>
