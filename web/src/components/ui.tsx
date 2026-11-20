@@ -83,8 +83,18 @@ export function Stars({ rating }: { rating: number | null }) {
   );
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  requested: "Requested",
+  accepted: "Accepted, awaiting payment",
+  paid: "Says paid",
+  confirmed: "Paid",
+  declined: "Declined",
+  cancelled: "Cancelled",
+  completed: "Completed",
+};
+
 export function StatusPill({ status }: { status: string }) {
-  return <span className={`pill pill-${status}`}>{status}</span>;
+  return <span className={`pill pill-${status}`}>{STATUS_LABEL[status] || status}</span>;
 }
 
 /**

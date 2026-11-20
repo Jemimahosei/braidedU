@@ -31,6 +31,8 @@ from .models import (
 )
 from . import photos as photo_store
 from .serializers import (
+    cancel_deadline,
+    own_photo_url,
     BookingSerializer,
     BraiderProfileSerializer,
     BraidStyleSerializer,
@@ -338,7 +340,7 @@ def _on_time_off(braider, day):
     return braider.time_off.filter(start_date__lte=day, end_date__gte=day).exists()
 
 
-def _open_slots(braider, listing, day):
+def _open_slots(braider, listing, day, exclude_id=None):
     """Start times a client may request on a day (list of datetime.time)."""
     if not braider.is_active or day < timezone.localdate():
         return []
@@ -356,7 +358,9 @@ def _open_slots(braider, listing, day):
     while cursor + length <= close:
         t = cursor.time()
         in_past = day == now.date() and cursor.replace(tzinfo=None) <= now.replace(tzinfo=None)
-        if not in_past and not _braider_has_conflict(braider, day, t, listing.duration_minutes):
+        if not in_past and not _braider_has_conflict(
+            braider, day, t, listing.duration_minutes, exclude_id=exclude_id
+        ):
             slots.append(t)
         cursor += timedelta(minutes=SLOT_STEP_MINUTES)
     return slots
@@ -434,9 +438,14 @@ def bookings(request):
             {"detail": "That time is not open. Pick one of the times shown for that day."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    place = str(request.data.get("place", ""))
+    chosen = listing.braider.service_places
+    if chosen and place not in chosen:
+        return Response({"detail": "Choose where the appointment will be."}, status=status.HTTP_400_BAD_REQUEST)
     serializer = BookingSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     booking = serializer.save(client=profile, braider=listing.braider, status="requested")
+    emails.booking_requested(booking)
     return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
 
@@ -453,15 +462,20 @@ def booking_detail(request, booking_id):
     return Response(BookingSerializer(booking).data)
 
 
-def _transition_booking(request, booking_id, allowed_from, new_status, actor):
+def _own_booking(request, booking_id, actor):
+    """Return (booking, error response). actor is 'braider' or 'client'."""
     role, profile = _role_and_profile(request.user)
     booking = get_object_or_404(Booking, id=booking_id)
-    if actor == "braider":
-        if role != "braider" or booking.braider_id != profile.id:
-            return Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
-    else:
-        if role != "client" or booking.client_id != profile.id:
-            return Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
+    owner = booking.braider_id if actor == "braider" else booking.client_id
+    if role != actor or owner != profile.id:
+        return None, Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
+    return booking, None
+
+
+def _transition_booking(request, booking_id, allowed_from, new_status, actor):
+    booking, err = _own_booking(request, booking_id, actor)
+    if err:
+        return err
     if booking.status not in allowed_from:
         return Response(
             {"detail": f"Booking is {booking.status}; cannot move it to {new_status}."},
@@ -476,7 +490,18 @@ def _transition_booking(request, booking_id, allowed_from, new_status, actor):
             status=status.HTTP_400_BAD_REQUEST,
         )
     booking.status = new_status
-    booking.save(update_fields=["status", "updated_at"])
+    fields = ["status", "updated_at"]
+    now = timezone.now()
+    if new_status == "confirmed":
+        booking.payment_confirmed_at = now
+        fields.append("payment_confirmed_at")
+    booking.save(update_fields=fields)
+    if new_status == "accepted":
+        emails.booking_accepted(booking)
+    elif new_status == "declined":
+        emails.booking_declined(booking)
+    elif new_status == "confirmed":
+        emails.payment_received(booking)
     return Response(BookingSerializer(booking).data)
 
 
@@ -492,12 +517,121 @@ def decline_booking(request, booking_id):
 
 @api_view(["POST"])
 def complete_booking(request, booking_id):
-    return _transition_booking(request, booking_id, ["accepted"], "completed", "braider")
+    return _transition_booking(request, booking_id, ["accepted", "paid", "confirmed"], "completed", "braider")
+
+
+@api_view(["POST"])
+def payment_received(request, booking_id):
+    return _transition_booking(request, booking_id, ["accepted", "paid"], "confirmed", "braider")
+
+
+@api_view(["POST"])
+def mark_paid(request, booking_id):
+    """The client says they have sent the money (optionally with a screenshot)."""
+    booking, err = _own_booking(request, booking_id, "client")
+    if err:
+        return err
+    if booking.status != "accepted":
+        return Response(
+            {"detail": "You can mark a booking paid once it is accepted."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    shot = own_photo_url(request, str(request.data.get("screenshot_url", "")))
+    booking.status = "paid"
+    booking.paid_at = timezone.now()
+    booking.payment_screenshot_url = shot
+    booking.save(update_fields=["status", "paid_at", "payment_screenshot_url", "updated_at"])
+    emails.client_says_paid(booking)
+    return Response(BookingSerializer(booking).data)
+
+
+ACTIVE = ["requested", "accepted", "paid", "confirmed"]
 
 
 @api_view(["POST"])
 def cancel_booking(request, booking_id):
-    return _transition_booking(request, booking_id, ["requested", "accepted"], "cancelled", "client")
+    booking, err = _own_booking(request, booking_id, "client")
+    if err:
+        return err
+    if booking.status not in ACTIVE:
+        return Response({"detail": f"Booking is {booking.status}."}, status=status.HTTP_400_BAD_REQUEST)
+    booking.status = "cancelled"
+    booking.cancelled_by = "client"
+    booking.cancel_reason = str(request.data.get("reason", ""))[:300]
+    # Inside her window she may keep any deposit; we only record it.
+    booking.late_cancel = timezone.now() > cancel_deadline(booking)
+    booking.save(update_fields=["status", "cancelled_by", "cancel_reason", "late_cancel", "updated_at"])
+    emails.booking_cancelled(booking, "client")
+    return Response(BookingSerializer(booking).data)
+
+
+@api_view(["POST"])
+def braider_cancel_booking(request, booking_id):
+    booking, err = _own_booking(request, booking_id, "braider")
+    if err:
+        return err
+    if booking.status not in ["accepted", "paid", "confirmed"]:
+        return Response({"detail": f"Booking is {booking.status}."}, status=status.HTTP_400_BAD_REQUEST)
+    booking.status = "cancelled"
+    booking.cancelled_by = "braider"
+    booking.cancel_reason = str(request.data.get("reason", ""))[:300]
+    booking.save(update_fields=["status", "cancelled_by", "cancel_reason", "updated_at"])
+    emails.booking_cancelled(booking, "braider")
+    return Response(BookingSerializer(booking).data)
+
+
+@api_view(["POST"])
+def reschedule_booking(request, booking_id):
+    """Client asks to move the appointment. Allowed until her cancel window starts."""
+    booking, err = _own_booking(request, booking_id, "client")
+    if err:
+        return err
+    if booking.status not in ACTIVE:
+        return Response({"detail": f"Booking is {booking.status}."}, status=status.HTTP_400_BAD_REQUEST)
+    if timezone.now() > cancel_deadline(booking):
+        return Response(
+            {"detail": "It is too close to the appointment to move it here. Message her instead."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        day = date_cls.fromisoformat(request.data.get("date", ""))
+        start = datetime.strptime(request.data.get("start_time", ""), "%H:%M").time()
+    except (ValueError, TypeError):
+        return Response({"detail": "Provide date and start_time."}, status=status.HTTP_400_BAD_REQUEST)
+    if start not in _open_slots(booking.braider, booking.listing, day, exclude_id=booking.id):
+        return Response({"detail": "That time is not open."}, status=status.HTTP_400_BAD_REQUEST)
+    booking.date, booking.start_time = day, start
+    booking.status = "requested"  # she approves the new time
+    booking.reminder_sent = False
+    booking.save(update_fields=["date", "start_time", "status", "reminder_sent", "updated_at"])
+    emails.booking_rescheduled(booking)
+    return Response(BookingSerializer(booking).data)
+
+
+@api_view(["GET"])
+def booking_receipt(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id)
+    role, profile = _role_and_profile(request.user)
+    mine = (role == "client" and booking.client_id == profile.id) or (
+        role == "braider" and booking.braider_id == profile.id
+    )
+    if not mine:
+        return Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
+    if booking.status not in ("confirmed", "completed") or not booking.payment_confirmed_at:
+        return Response({"detail": "No receipt yet: payment is not confirmed."}, status=status.HTTP_404_NOT_FOUND)
+    return Response(
+        {
+            "receipt_no": booking.id,
+            "braider": booking.braider.display_name,
+            "client": booking.client.display_name,
+            "service": booking.listing.title,
+            "date": booking.date,
+            "start_time": booking.start_time.strftime("%H:%M"),
+            "duration_minutes": booking.listing.duration_minutes,
+            "amount": str(booking.listing.price),
+            "paid_on": booking.payment_confirmed_at,
+        }
+    )
 
 
 # ---------------------------------------------------------------- reviews

@@ -91,6 +91,7 @@ class BraiderProfileSerializer(serializers.ModelSerializer):
             "available_days", "available_start_time", "available_end_time",
             "service_places", "private_address", "cancel_window_hours",
             "deposit_note", "policy_text", "reminders_enabled", "buffer_minutes",
+            "venmo_handle", "zelle_contact",
             "is_active", "is_demo", "average_rating", "review_count",
             "listings", "reviews", "created_at",
         ]
@@ -127,6 +128,9 @@ class BraiderProfileSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or getattr(request.user, "pk", None) != instance.user_id:
             data.pop("private_address", None)
+            # Payment handles reach a client only through an accepted booking.
+            data.pop("venmo_handle", None)
+            data.pop("zelle_contact", None)
         return data
 
     def validate_campus_area(self, value):
@@ -144,6 +148,9 @@ class ClientProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at"]
 
 
+PAYMENT_VISIBLE = {"accepted", "paid", "confirmed", "completed"}
+
+
 class BookingSerializer(serializers.ModelSerializer):
     listing_title = serializers.CharField(source="listing.title", read_only=True)
     style_name = serializers.CharField(source="listing.style.name", read_only=True)
@@ -153,6 +160,8 @@ class BookingSerializer(serializers.ModelSerializer):
     price = serializers.DecimalField(source="listing.price", max_digits=8, decimal_places=2, read_only=True)
     duration_minutes = serializers.IntegerField(source="listing.duration_minutes", read_only=True)
     end_time = serializers.SerializerMethodField()
+    cancel_deadline = serializers.SerializerMethodField()
+    cancel_window_hours = serializers.IntegerField(source="braider.cancel_window_hours", read_only=True)
 
     class Meta:
         model = Booking
@@ -160,15 +169,47 @@ class BookingSerializer(serializers.ModelSerializer):
             "id", "client", "client_name", "listing", "listing_title",
             "style_name", "braider", "braider_id", "braider_name", "price",
             "duration_minutes", "date", "start_time", "end_time", "status",
-            "notes", "created_at", "updated_at",
+            "notes", "place", "paid_at", "payment_confirmed_at",
+            "payment_screenshot_url", "cancelled_by", "cancel_reason",
+            "late_cancel", "cancel_deadline", "cancel_window_hours",
+            "created_at", "updated_at",
         ]
-        read_only_fields = ["client", "braider", "status", "created_at", "updated_at"]
+        read_only_fields = [
+            "client", "braider", "status", "paid_at", "payment_confirmed_at",
+            "payment_screenshot_url", "cancelled_by", "cancel_reason",
+            "late_cancel", "created_at", "updated_at",
+        ]
 
     def get_end_time(self, obj):
-        from datetime import datetime, time, timedelta
+        from datetime import datetime, timedelta
 
         start = datetime.combine(obj.date, obj.start_time)
         return (start + timedelta(minutes=obj.listing.duration_minutes)).time().isoformat(timespec="minutes")
+
+    def get_cancel_deadline(self, obj):
+        return cancel_deadline(obj).isoformat()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Where to pay and where to go are shared only after she accepts.
+        if instance.status in PAYMENT_VISIBLE:
+            b = instance.braider
+            data["pay"] = {
+                "venmo": b.venmo_handle,
+                "zelle": b.zelle_contact,
+                "deposit_note": b.deposit_note,
+            }
+            data["address"] = b.private_address if instance.place in ("", "my_place") else ""
+        return data
+
+
+def cancel_deadline(booking):
+    from datetime import datetime, timedelta
+
+    from django.utils import timezone
+
+    start = timezone.make_aware(datetime.combine(booking.date, booking.start_time))
+    return start - timedelta(hours=booking.braider.cancel_window_hours)
 
 
 class RegisterSerializer(serializers.Serializer):
