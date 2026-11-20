@@ -58,31 +58,43 @@ export default function Browse() {
     setParams(next);
   };
 
+  const count = loading
+    ? ""
+    : `${results.length} ${results.length === 1 ? "braider" : "braiders"}${style ? ` for ${style}` : ""}`;
+  const hasMore = Boolean(date || campus || maxPrice);
+
   return (
     <div className="page">
       <div className="wrap">
-        <h1>Find your braider</h1>
+        <h1>Find a braider</h1>
         <p className="lede">
           {style && date
             ? `Ranked for ${style} on ${date}. Availability, reviews, price and experience all count.`
-            : "Filter by style, place, or budget. Pick a date too and we will rank braiders for that day."}
+            : "Choose a style to see who does it."}
         </p>
 
-        <div className="panel stack" style={{ marginTop: "1.5rem" }}>
-          <div className="row">
+        <div className="chip-row" style={{ marginTop: "1.25rem" }} role="group" aria-label="Style">
+          <button type="button" className="chip" aria-pressed={!style} onClick={() => set("style", "")}>
+            All
+          </button>
+          {styles.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="chip"
+              aria-pressed={style === s.name}
+              onClick={() => set("style", s.name)}
+            >
+              {s.name.charAt(0).toUpperCase() + s.name.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <details className="more-filters" open={hasMore}>
+          <summary>Day, place and budget</summary>
+          <div className="row" style={{ marginTop: "0.9rem" }}>
             <div>
-              <label htmlFor="f-style">Style</label>
-              <select id="f-style" value={style} onChange={(e) => set("style", e.target.value)}>
-                <option value="">Any style</option>
-                {styles.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="f-date">Date</label>
+              <label htmlFor="f-date">Day</label>
               <input id="f-date" type="date" min={todayISO()} value={date} onChange={(e) => set("date", e.target.value)} />
             </div>
             <div>
@@ -108,19 +120,21 @@ export default function Browse() {
               />
             </div>
           </div>
-        </div>
+        </details>
 
         {error && <p className="error" style={{ marginTop: "1rem" }}>{error}</p>}
         {slow && loading && <div style={{ marginTop: "1rem" }}><WakingNotice /></div>}
+        <p className="result-count" role="status">{count}</p>
         {loading ? (
-          <div style={{ marginTop: "1.5rem" }}><RowsSkeleton /></div>
+          <div style={{ marginTop: "0.75rem" }}><RowsSkeleton /></div>
         ) : results.length === 0 ? (
-          <p className="muted" style={{ marginTop: "1.5rem" }}>
-            Nobody matches that yet. Try a different style or budget, or{" "}
-            <a href="#/signup?role=braider">list your own chair</a>.
-          </p>
+          <div className="empty-card">
+            <strong>No one does this style yet.</strong>
+            <p>Braiders sign up with their own styles and prices, so this list grows as they join. Do you braid?</p>
+            <a className="btn" href="#/signup?role=braider">List your chair</a>
+          </div>
         ) : (
-          <div className="rows" style={{ marginTop: "1.5rem" }}>
+          <div className="rows" style={{ marginTop: "0.75rem" }}>
             <h2 className="sr-only">Matching braiders</h2>
             {results.map((b) => (
               <BraiderRow key={b.id} braider={b} />
