@@ -10,6 +10,7 @@ import {
   todayISO,
   WEEKDAYS,
   sized,
+  SERVICE_PLACES,
   type Braider,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -22,6 +23,7 @@ export default function BraiderDetail() {
   const [listingId, setListingId] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [slots, setSlots] = useState<string[] | null>(null);
   const [notes, setNotes] = useState("");
   const [bookingMsg, setBookingMsg] = useState("");
   const [bookingErr, setBookingErr] = useState("");
@@ -39,6 +41,22 @@ export default function BraiderDetail() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Could not load this braider."));
   }, [id]);
+
+  useEffect(() => {
+    setTime("");
+    if (!id || !listingId || !date) {
+      setSlots(null);
+      return;
+    }
+    let live = true;
+    api
+      .slots(id, listingId, date)
+      .then((r) => live && setSlots(r.slots))
+      .catch(() => live && setSlots([]));
+    return () => {
+      live = false;
+    };
+  }, [id, listingId, date]);
 
   const book = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +113,11 @@ export default function BraiderDetail() {
                 </div>
               </div>
               {braider.bio && <p style={{ marginTop: "1rem" }}>{braider.bio}</p>}
+              {braider.policy_text && (
+                <p className="muted" style={{ marginTop: "0.75rem" }}>
+                  <strong>Her rules:</strong> {braider.policy_text}
+                </p>
+              )}
               <dl className="kv" style={{ marginTop: "1rem" }}>
                 <dt>Experience</dt>
                 <dd>{braider.years_experience} {braider.years_experience === 1 ? "year" : "years"} braiding</dd>
@@ -105,6 +128,20 @@ export default function BraiderDetail() {
                     <>, {formatTime(braider.available_start_time.slice(0, 5))} to {formatTime(braider.available_end_time.slice(0, 5))}</>
                   )}
                 </dd>
+                {braider.service_places?.length > 0 && (
+                  <>
+                    <dt>Where</dt>
+                    <dd>{braider.service_places.map((p) => SERVICE_PLACES[p] || p).join(", ")}</dd>
+                  </>
+                )}
+                <dt>Cancelling</dt>
+                <dd>Free until {braider.cancel_window_hours} hours before</dd>
+                {braider.deposit_note && (
+                  <>
+                    <dt>Deposit</dt>
+                    <dd>{braider.deposit_note}</dd>
+                  </>
+                )}
                 {braider.instagram && (
                   <>
                     <dt>Instagram</dt>
@@ -171,11 +208,27 @@ export default function BraiderDetail() {
                       <label htmlFor="bk-date">Date</label>
                       <input id="bk-date" type="date" required min={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} />
                     </div>
-                    <div>
-                      <label htmlFor="bk-time">Start time</label>
-                      <input id="bk-time" type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
-                    </div>
                   </div>
+                  {date && (
+                    <div>
+                      <label id="bk-time-l">Start time</label>
+                      {slots === null ? (
+                        <p className="muted">Loading times…</p>
+                      ) : slots.length === 0 ? (
+                        <p className="muted">
+                          No times open that day. Try another date.
+                        </p>
+                      ) : (
+                        <div className="chip-row" role="group" aria-labelledby="bk-time-l">
+                          {slots.map((t) => (
+                            <button key={t} type="button" className="chip" aria-pressed={time === t} onClick={() => setTime(t)}>
+                              {formatTime(t)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <label htmlFor="bk-notes">Notes for your braider (optional)</label>
                     <textarea id="bk-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Length, color, inspo. Anything she should know." />
@@ -187,7 +240,7 @@ export default function BraiderDetail() {
                   )}
                   {bookingErr && <p className="error">{bookingErr}</p>}
                   {bookingMsg && <p className="notice">{bookingMsg}</p>}
-                  <button className="btn" type="submit">
+                  <button className="btn" type="submit" disabled={!time}>
                     {user ? "Request this appointment" : "Log in to request"}
                   </button>
                   {!user && (

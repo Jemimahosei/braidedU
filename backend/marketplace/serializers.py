@@ -10,6 +10,7 @@ from .models import (
     ClientProfile,
     Listing,
     Photo,
+    TimeOff,
     Review,
 )
 
@@ -60,6 +61,20 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only_fields = ["booking", "created_at"]
 
 
+SERVICE_PLACES = {"my_place", "client_place", "campus_space"}
+
+
+class TimeOffSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimeOff
+        fields = ["id", "start_date", "end_date", "note"]
+
+    def validate(self, attrs):
+        if attrs["end_date"] < attrs["start_date"]:
+            raise serializers.ValidationError("The last day cannot be before the first day.")
+        return attrs
+
+
 class BraiderProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     listings = ListingSerializer(many=True, read_only=True)
@@ -74,6 +89,8 @@ class BraiderProfileSerializer(serializers.ModelSerializer):
             "id", "username", "display_name", "bio", "campus_area",
             "location_detail", "instagram", "photo_url", "years_experience",
             "available_days", "available_start_time", "available_end_time",
+            "service_places", "private_address", "cancel_window_hours",
+            "deposit_note", "policy_text", "reminders_enabled", "buffer_minutes",
             "is_active", "is_demo", "average_rating", "review_count",
             "listings", "reviews", "created_at",
         ]
@@ -87,6 +104,30 @@ class BraiderProfileSerializer(serializers.ModelSerializer):
 
     def validate_photo_url(self, value):
         return own_photo_url(self.context.get("request"), value)
+
+    def validate_service_places(self, value):
+        bad = [p for p in value if p not in SERVICE_PLACES]
+        if bad:
+            raise serializers.ValidationError(f"Invalid places: {bad}. Use {sorted(SERVICE_PLACES)}.")
+        return value
+
+    def validate_cancel_window_hours(self, value):
+        if value > 24 * 14:
+            raise serializers.ValidationError("Use 14 days (336 hours) or less.")
+        return value
+
+    def validate_buffer_minutes(self, value):
+        if value > 120:
+            raise serializers.ValidationError("Use 120 minutes or less.")
+        return value
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # The street address is for her eyes only (clients get it after accept).
+        request = self.context.get("request")
+        if not request or getattr(request.user, "pk", None) != instance.user_id:
+            data.pop("private_address", None)
+        return data
 
     def validate_campus_area(self, value):
         if value and value not in dict(CAMPUS_AREAS):

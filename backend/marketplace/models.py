@@ -69,6 +69,18 @@ class BraiderProfile(models.Model):
     available_days = models.JSONField(default=list, blank=True)
     available_start_time = models.TimeField(null=True, blank=True)
     available_end_time = models.TimeField(null=True, blank=True)
+    # Where she braids: any of "my_place", "client_place", "campus_space".
+    service_places = models.JSONField(default=list, blank=True)
+    # Street address of her place. Never in public output; clients see it only
+    # once she has accepted their booking.
+    private_address = models.CharField(max_length=200, blank=True)
+    # Her rules.
+    cancel_window_hours = models.PositiveIntegerField(default=24)
+    deposit_note = models.CharField(max_length=200, blank=True)
+    policy_text = models.TextField(blank=True)
+    reminders_enabled = models.BooleanField(default=True)
+    # Rest time kept between two appointments.
+    buffer_minutes = models.PositiveIntegerField(default=15)
     is_active = models.BooleanField(default=True)
     # True for seeded demo accounts; the frontend badges these "Demo profile".
     is_demo = models.BooleanField(default=False)
@@ -201,3 +213,18 @@ class Photo(models.Model):
 
     def __str__(self):
         return f"{self.kind} photo by {self.owner}"
+
+
+class TimeOff(models.Model):
+    """A stretch of days a braider is not taking appointments."""
+
+    braider = models.ForeignKey(BraiderProfile, on_delete=models.CASCADE, related_name="time_off")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    note = models.CharField(max_length=160, blank=True)
+
+    class Meta:
+        ordering = ["start_date"]
+
+    def __str__(self):
+        return f"{self.braider} off {self.start_date} to {self.end_date}"

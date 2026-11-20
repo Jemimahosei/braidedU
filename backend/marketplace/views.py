@@ -27,6 +27,7 @@ from .models import (
     Listing,
     Photo,
     Review,
+    TimeOff,
 )
 from . import photos as photo_store
 from .serializers import (
@@ -36,6 +37,7 @@ from .serializers import (
     ClientProfileSerializer,
     ListingSerializer,
     RegisterSerializer,
+    TimeOffSerializer,
     ReviewSerializer,
 )
 
@@ -201,7 +203,7 @@ def my_braider_profile(request):
     if role != "braider":
         return Response({"detail": "No braider profile for this user."}, status=status.HTTP_404_NOT_FOUND)
     if request.method == "GET":
-        return Response(BraiderProfileSerializer(profile).data)
+        return Response(BraiderProfileSerializer(profile, context={"request": request}).data)
     serializer = BraiderProfileSerializer(profile, data=request.data, partial=True, context={"request": request})
     serializer.is_valid(raise_exception=True)
     serializer.save()
@@ -309,19 +311,90 @@ def _overlaps(a_start, a_end, b_start, b_end):
 
 
 def _braider_has_conflict(braider, booking_date, start_time, duration_minutes, exclude_id=None):
-    """True if the braider already has an accepted booking overlapping."""
-    end = (datetime.combine(booking_date, start_time) + timedelta(minutes=duration_minutes)).time()
+    """True if an accepted booking (plus her rest time) overlaps the new one."""
+    start = datetime.combine(booking_date, start_time)
+    end = start + timedelta(minutes=duration_minutes)
+    pad = timedelta(minutes=braider.buffer_minutes)
     busy = Booking.objects.filter(braider=braider, date=booking_date, status="accepted")
     if exclude_id:
         busy = busy.exclude(id=exclude_id)
     for other in busy.select_related("listing"):
-        other_end = (
+        o_start = datetime.combine(other.date, other.start_time) - pad
+        o_end = (
             datetime.combine(other.date, other.start_time)
             + timedelta(minutes=other.listing.duration_minutes)
-        ).time()
-        if _overlaps(start_time, end, other.start_time, other_end):
+            + pad
+        )
+        if start < o_end and o_start < end:
             return True
     return False
+
+
+WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+SLOT_STEP_MINUTES = 30
+
+
+def _on_time_off(braider, day):
+    return braider.time_off.filter(start_date__lte=day, end_date__gte=day).exists()
+
+
+def _open_slots(braider, listing, day):
+    """Start times a client may request on a day (list of datetime.time)."""
+    if not braider.is_active or day < timezone.localdate():
+        return []
+    if WEEKDAY_KEYS[day.weekday()] not in braider.available_days:
+        return []
+    if not braider.available_start_time or not braider.available_end_time:
+        return []
+    if _on_time_off(braider, day):
+        return []
+    now = timezone.localtime()
+    cursor = datetime.combine(day, braider.available_start_time)
+    close = datetime.combine(day, braider.available_end_time)
+    length = timedelta(minutes=listing.duration_minutes)
+    slots = []
+    while cursor + length <= close:
+        t = cursor.time()
+        in_past = day == now.date() and cursor.replace(tzinfo=None) <= now.replace(tzinfo=None)
+        if not in_past and not _braider_has_conflict(braider, day, t, listing.duration_minutes):
+            slots.append(t)
+        cursor += timedelta(minutes=SLOT_STEP_MINUTES)
+    return slots
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def braider_slots(request, braider_id):
+    braider = get_object_or_404(BraiderProfile, id=braider_id)
+    listing = get_object_or_404(Listing, id=request.query_params.get("listing"), braider=braider)
+    try:
+        day = date_cls.fromisoformat(request.query_params.get("date", ""))
+    except ValueError:
+        return Response({"detail": "Provide date as YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"date": day.isoformat(), "slots": [t.strftime("%H:%M") for t in _open_slots(braider, listing, day)]})
+
+
+@api_view(["GET", "POST"])
+def my_time_off(request):
+    role, profile = _role_and_profile(request.user)
+    if role != "braider":
+        return Response({"detail": "Braiders only."}, status=status.HTTP_403_FORBIDDEN)
+    if request.method == "GET":
+        upcoming = profile.time_off.filter(end_date__gte=timezone.localdate())
+        return Response(TimeOffSerializer(upcoming, many=True).data)
+    serializer = TimeOffSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save(braider=profile)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["DELETE"])
+def delete_time_off(request, time_off_id):
+    role, profile = _role_and_profile(request.user)
+    if role != "braider":
+        return Response({"detail": "Braiders only."}, status=status.HTTP_403_FORBIDDEN)
+    get_object_or_404(TimeOff, id=time_off_id, braider=profile).delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["GET", "POST"])
@@ -356,9 +429,9 @@ def bookings(request):
         )
     if booking_date < timezone.localdate():
         return Response({"detail": "Booking date cannot be in the past."}, status=status.HTTP_400_BAD_REQUEST)
-    if _braider_has_conflict(listing.braider, booking_date, start_time, listing.duration_minutes):
+    if start_time not in _open_slots(listing.braider, listing, booking_date):
         return Response(
-            {"detail": "The braider already has a booking at that time."},
+            {"detail": "That time is not open. Pick one of the times shown for that day."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     serializer = BookingSerializer(data=request.data)
