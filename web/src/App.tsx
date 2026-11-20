@@ -10,6 +10,7 @@ import { Confirm, Forgot, Login, Reset, Signup } from "./pages/Auth";
 import ClientDashboard from "./pages/ClientDashboard";
 import Messages from "./pages/Messages";
 import BraiderDashboard from "./pages/BraiderDashboard";
+import Join from "./pages/Join";
 
 function DashboardRoute() {
   const { user } = useAuth();
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="/reset" element={<Reset />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:userId" element={<Messages />} />
+            <Route path="/join" element={<Join />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
