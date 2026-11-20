@@ -1,20 +1,14 @@
 # braidedU — Braids on Campus
 
-*Formerly Kormo Mela.*
-
 **Live demo: https://braidedu-frontend.onrender.com**
 (The API sleeps when idle, so the first load can take up to a minute. The
 site tells you when it is waking up. Use the demo accounts below to look around.)
 
-A marketplace for braiding services for Black women on campus. Clients
+A marketplace for braiding services for Black individuals on campus. Clients
 find student braiders, see real prices and durations up front, and request
 appointments. Braiders list their styles, manage requests, and build a
 reputation through reviews. No more chasing DMs.
 
-This is a rebuild of the original Kormo Mela Devpost project (a labor
-marketplace linking consumers with verified workers via profiles, reviews,
-and direct communication), with jem's twist: braiding services, by and for
-students on campus.
 
 ## Pages
 
