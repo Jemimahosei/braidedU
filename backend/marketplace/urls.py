@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, views_social
 
 urlpatterns = [
     path("auth/register/", views.register, name="register"),
@@ -23,6 +23,13 @@ urlpatterns = [
     path("listings/", views.ListingListCreateView.as_view(), name="listing-list"),
     path("listings/<int:pk>/", views.ListingDetailView.as_view(), name="listing-detail"),
     path("my-listings/", views.my_listings, name="my-listings"),
+    path("messages/", views_social.conversations, name="conversations"),
+    path("messages/unread/", views_social.unread_count, name="unread-count"),
+    path("messages/<int:user_id>/", views_social.thread, name="thread"),
+    path("blocks/<int:user_id>/", views_social.block, name="block"),
+    path("reports/", views_social.report, name="report"),
+    path("reviews/<int:review_id>/reply/", views_social.reply_to_review, name="review-reply"),
+    path("photos/mine/", views_social.delete_all_my_photos, name="photos-delete-all"),
     path("photos/", views.upload_photo, name="photo-upload"),
     path("photos/<int:photo_id>/", views.delete_photo, name="photo-delete"),
     path("bookings/", views.bookings, name="bookings"),

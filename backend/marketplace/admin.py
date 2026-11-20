@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Booking, BraiderProfile, BraidStyle, ClientProfile, Listing, Review
+from .models import Block, Message, Report, Booking, BraiderProfile, BraidStyle, ClientProfile, Listing, Review
 
 
 @admin.register(BraidStyle)
@@ -38,3 +38,20 @@ class BookingAdmin(admin.ModelAdmin):
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ["braider", "client", "rating", "created_at"]
     list_filter = ["rating"]
+
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ["created_at", "reporter", "reported", "reason", "handled"]
+    list_filter = ["reason", "handled"]
+    search_fields = ["reporter__username", "reported__username", "detail"]
+
+
+@admin.register(Block)
+class BlockAdmin(admin.ModelAdmin):
+    list_display = ["blocker", "blocked", "created_at"]
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ["created_at", "sender", "recipient"]
