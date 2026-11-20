@@ -100,8 +100,21 @@ export function getToken(): string | null {
 }
 
 export function getStoredUser(): AuthUser | null {
-  const raw = localStorage.getItem("braidedu_user");
-  return raw ? (JSON.parse(raw) as AuthUser) : null;
+  // A corrupted or blocked localStorage entry must never crash the whole app.
+  try {
+    const raw = localStorage.getItem("braidedu_user");
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Today as YYYY-MM-DD in the viewer's local time, for date input minimums. */
+export function todayISO(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 
 export function storeAuth(token: string, user: AuthUser) {

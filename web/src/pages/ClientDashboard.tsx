@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, formatDate, formatPrice, formatTime, type Booking } from "../lib/api";
-import { StatusPill, Stars } from "../components/ui";
+import { StatusPill } from "../components/ui";
 
 export default function ClientDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -34,7 +34,7 @@ export default function ClientDashboard() {
     setError("");
     try {
       await api.reviewBooking(id, rating, comment);
-      setNotice("Review posted — thank you.");
+      setNotice("Review posted. Thank you.");
       setReviewFor(null);
       setComment("");
       load();
@@ -55,10 +55,10 @@ export default function ClientDashboard() {
         <StatusPill status={b.status} />
       </div>
       <div className="meta">
-        {b.listing_title} · {b.style_name}
+        {b.listing_title}, {b.style_name}
       </div>
       <div>
-        {formatDate(b.date)} at {formatTime(b.start_time)}–{formatTime(b.end_time)} ·{" "}
+        {formatDate(b.date)}, {formatTime(b.start_time)} to {formatTime(b.end_time)}.{" "}
         {formatPrice(b.price)}
       </div>
       {b.notes && <p className="muted">“{b.notes}”</p>}
@@ -106,7 +106,7 @@ export default function ClientDashboard() {
               rows={2}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Neat parts, on time, gentle hands…"
+              placeholder="Neat parts, on time, gentle hands"
             />
           </div>
           <button className="btn btn-sm" type="submit">
@@ -120,14 +120,13 @@ export default function ClientDashboard() {
   return (
     <div className="page">
       <div className="wrap">
-        <p className="eyebrow">My bookings</p>
         <h1>Your appointments</h1>
         {error && <p className="error" style={{ marginTop: "1rem" }}>{error}</p>}
         {notice && <p className="notice" style={{ marginTop: "1rem" }}>{notice}</p>}
         <h2 style={{ marginTop: "1.5rem" }}>Upcoming</h2>
         {upcoming.length === 0 ? (
           <p className="muted">
-            Nothing booked yet. <Link to="/browse">Find a braider →</Link>
+            Nothing booked yet. <Link to="/browse">Find a braider</Link>
           </p>
         ) : (
           <div className="grid" style={{ marginTop: "1rem" }}>{upcoming.map(bookingCard)}</div>
@@ -139,7 +138,7 @@ export default function ClientDashboard() {
           <div className="grid" style={{ marginTop: "1rem" }}>{past.map(bookingCard)}</div>
         )}
         <p className="muted" style={{ marginTop: "1rem" }}>
-          <Stars rating={null} /> Reviews only open up after a booking is completed.
+          Reviews open once your braider marks a booking complete.
         </p>
       </div>
     </div>

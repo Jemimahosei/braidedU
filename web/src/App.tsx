@@ -6,7 +6,6 @@ import BraiderDetail from "./pages/BraiderDetail";
 import { Login, Signup } from "./pages/Auth";
 import ClientDashboard from "./pages/ClientDashboard";
 import BraiderDashboard from "./pages/BraiderDashboard";
-import { BraidBand } from "./components/ui";
 
 function DashboardRoute() {
   const { user } = useAuth();
@@ -21,15 +20,15 @@ function Header() {
     <header className="site-header">
       <div className="wrap">
         <Link className="brand" to="/">
-          braidedU <small>braids on campus</small>
+          braided<b>U</b>
         </Link>
         <nav className="nav">
           <Link to="/browse">Find a braider</Link>
           {user ? (
             <>
               <Link to="/dashboard">My dashboard</Link>
-              <span style={{ color: "var(--gold-soft)" }}>
-                {user.username} · {user.role}
+              <span className="who">
+                {user.username} ({user.role})
               </span>
               <button
                 type="button"
@@ -46,7 +45,7 @@ function Header() {
             <>
               <Link to="/signup?role=braider">List your chair</Link>
               <Link to="/login">Log in</Link>
-              <Link to="/signup" className="btn btn-gold btn-sm">
+              <Link to="/signup" className="btn btn-sm">
                 Sign up
               </Link>
             </>
@@ -75,11 +74,9 @@ export default function App() {
         </main>
         <footer className="site-footer">
           <div className="wrap">
-            <BraidBand />
             <p>
-              <strong style={{ color: "var(--cream)" }}>braidedU</strong> — a campus
-              marketplace for braiding services, built by a Cornell student for
-              Black women on campus. Student braiders, real prices, no chasing DMs.
+              <strong>braidedU</strong> is a campus marketplace for braiding
+              services, built by a Cornell student for Black women on campus.
             </p>
             <p>
               A free community project. Listings marked “Demo profile” are seeded

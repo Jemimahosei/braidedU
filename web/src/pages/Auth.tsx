@@ -35,14 +35,13 @@ export function Login() {
       signIn(res.token, { username: res.username, role: res.role, profile_id: res.profile_id });
       navigate("/dashboard");
     } catch {
-      setError("Demo login failed — is the API running?");
+      setError("Demo login failed. The server may still be waking up, so try again in a moment.");
     }
   };
 
   return (
     <div className="page">
       <div className="wrap" style={{ maxWidth: "560px" }}>
-        <p className="eyebrow">Welcome back</p>
         <h1>Log in</h1>
         <form onSubmit={submit} className="panel stack" style={{ marginTop: "1.5rem" }}>
           <div>
@@ -64,7 +63,7 @@ export function Login() {
         <div className="panel stack" style={{ marginTop: "1rem" }}>
           <strong>Try the demo</strong>
           <p className="muted" style={{ margin: 0 }}>
-            One tap to look around with a demo account — no sign-up needed.
+            Look around with a demo account. No sign-up needed.
           </p>
           <div className="row">
             <button className="btn btn-ghost btn-sm" type="button" onClick={() => demoLogin("client_demo")}>
@@ -112,12 +111,11 @@ export function Signup() {
   return (
     <div className="page">
       <div className="wrap" style={{ maxWidth: "560px" }}>
-        <p className="eyebrow">Join braidedU</p>
         <h1>Create your account</h1>
-        <p className="lede">Free for everyone on campus. Pick your side — you can only be one per account.</p>
+        <p className="lede">Free for everyone on campus. Pick one. An account is either a client or a braider.</p>
         <form onSubmit={submit} className="panel stack" style={{ marginTop: "1.5rem" }}>
           <div>
-            <label>I am here to…</label>
+            <label>I am here to</label>
             <div className="chip-row">
               <button
                 type="button"
@@ -153,7 +151,7 @@ export function Signup() {
           </div>
           <div>
             <label htmlFor="su-pass">Password</label>
-            <input id="su-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={4} autoComplete="new-password" />
+            <input id="su-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
           </div>
           {error && <p className="error">{error}</p>}
           <button className="btn" type="submit" disabled={busy}>
