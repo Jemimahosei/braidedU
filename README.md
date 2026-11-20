@@ -1,8 +1,8 @@
 # braidedU — Braids on Campus
 
-**Live demo: https://braidedu-frontend.onrender.com**
+**Live site: https://braidedu-frontend.onrender.com**
 (The API sleeps when idle, so the first load can take up to a minute. The
-site tells you when it is waking up. Use the demo accounts below to look around.)
+site tells you when it is waking up.)
 
 A marketplace for braiding services for Black individuals on campus. Clients
 find student braiders, see real prices and durations up front, and request
@@ -17,7 +17,7 @@ reputation through reviews. No more chasing DMs.
 | `/` | Home: find-a-braider search, styles with lowest prices, featured braiders, how booking works | Everyone |
 | `/browse` | Filter braiders by style, date, campus area and budget; ranked when a style and date are chosen | Everyone |
 | `/braiders/:id` | Braider profile: bio, hours, priced listings, reviews, booking form | Everyone (booking needs a client account) |
-| `/signup`, `/login` | Create an account as a client or a braider, or try a demo account | Everyone |
+| `/signup`, `/login` | Create an account as a client or a braider | Everyone |
 | `/dashboard` | Client: upcoming and past appointments, cancel, review. Braider: requests, schedule, listings, profile | Signed in |
 
 ## Stack
@@ -40,7 +40,7 @@ Backend (Python 3.12):
 cd backend
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python manage.py migrate
-.venv/bin/python manage.py seed_demo
+.venv/bin/python manage.py seed_styles
 .venv/bin/python manage.py runserver   # http://127.0.0.1:8000
 ```
 
@@ -56,19 +56,11 @@ npm run dev                            # http://localhost:5173
 The website reads `VITE_API_URL` (default `http://localhost:8000/api`).
 Docker: `docker compose up` runs Postgres + the backend.
 
-## Demo accounts (password `demo1234` for all)
+## Real braiders only
 
-| Account | Role | Notes |
-| --- | --- | --- |
-| `client_demo` | Client | One upcoming + one completed booking |
-| `client_new` | Client | Bare profile |
-| `braider_demo` (Adaeze) | Braider | Knotless, box braids, cornrows |
-| `braider_ada` (Zuri) | Braider | Cornrows, stitch braids, twists |
-| `braider_zuri` (Mariam) | Braider | Faux locs, goddess braids, twists |
-| `braider_new` | Braider | Bare profile |
-
-All seeded braiders are flagged demo and shown with a **Demo profile**
-badge. No real people are seeded.
+There is no demo data. The 15 braid styles are created on every deploy by
+`python manage.py seed_styles` (safe to repeat). Braiders and clients are real
+people who sign up. Photos go on the site only after the person has agreed.
 
 ## API
 
@@ -90,6 +82,7 @@ Base: `/api/`. Auth: `Authorization: Token <key>`.
 - `POST /api/bookings/<id>/accept|decline|complete/` — braider; `cancel/` — client
 - `POST /api/bookings/<id>/review/` `{rating 1-5, comment}` — client, completed only
 - `GET /api/braiders/<id>/reviews/` — public
+- `PATCH /api/braiders/me/` and `POST /api/listings/` accept `photo_url`; `POST /api/bookings/<id>/review/` accepts `photo_urls` (up to 4). A photo link is accepted only if that user uploaded it.
 - `POST /api/photos/` multipart `{image, kind: profile|work|review|message|reference}` → `{id, url, thumb_url, large_url}` — signed in; JPG/PNG/WebP/GIF up to 10 MB
 - `DELETE /api/photos/<id>/` — owner only; removes the file from storage too
 
@@ -120,19 +113,17 @@ the stored file.
 
 ## Design
 
-Shelf-edge price labels in a clean marketplace. Every style and listing is a
-yellow price label (big numeral, style name, how long it takes), the way a
-market stall or beauty-supply shelf shows the cost before you ask. Wax-print
-tiles (the fans, circles and bands of Ghanaian printed cloth) stand in for
-faces, so no profile ever shows a fake or scraped person. Ink, label yellow
-and wax green on a cool paper ground; Archivo for display and prices, Figtree
-for text. Direction chosen with Impeccable's new-work flow; product context in
-`PRODUCT.md`. The site shows a "server waking up" notice instead of an empty
-list when the free API host is asleep.
+Calm and photo-led. Sage ground (`#eef1ee`), sand accent (`#efd9a3`), green
+(`#3f6b57`), big rounded cards and pill buttons, Fraunces for headings and
+Figtree for text. Real photos lead every card; a braider with no photo shows
+her initials on sand, never a stand-in face. The logo is a silhouette badge
+with a braided bun. The site shows a "server waking up" notice instead of an
+empty list when the free API host is asleep. Phone layouts use the same
+styles (one column, scrolling nav, large tap targets).
 
 ## Tests
 
 ```bash
 cd backend
-.venv/bin/python manage.py test marketplace   # 19 tests
+.venv/bin/python manage.py test marketplace   # 24 tests
 ```

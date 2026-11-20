@@ -135,7 +135,7 @@ def my_braider_profile(request):
         return Response({"detail": "No braider profile for this user."}, status=status.HTTP_404_NOT_FOUND)
     if request.method == "GET":
         return Response(BraiderProfileSerializer(profile).data)
-    serializer = BraiderProfileSerializer(profile, data=request.data, partial=True)
+    serializer = BraiderProfileSerializer(profile, data=request.data, partial=True, context={"request": request})
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
@@ -387,9 +387,15 @@ def reviews_for_booking(request, booking_id):
         return Response({"detail": "Rating must be an integer 1-5."}, status=status.HTTP_400_BAD_REQUEST)
     if rating < 1 or rating > 5:
         return Response({"detail": "Rating must be 1-5."}, status=status.HTTP_400_BAD_REQUEST)
+    urls = request.data.get("photo_urls") or []
+    if not isinstance(urls, list) or len(urls) > 4:
+        return Response({"detail": "Add up to 4 photos."}, status=status.HTTP_400_BAD_REQUEST)
+    mine = set(Photo.objects.filter(owner=request.user, url__in=urls).values_list("url", flat=True))
+    if any(u not in mine for u in urls):
+        return Response({"detail": "Upload each photo first, then use its link."}, status=status.HTTP_400_BAD_REQUEST)
     review = Review.objects.create(
         booking=booking, client=profile, braider=booking.braider,
-        rating=rating, comment=request.data.get("comment", ""),
+        rating=rating, comment=request.data.get("comment", ""), photo_urls=urls,
     )
     return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
