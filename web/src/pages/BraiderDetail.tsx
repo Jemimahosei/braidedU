@@ -15,6 +15,7 @@ import {
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar, ListingRow, Stars } from "../components/ui";
+import { SafetyMenu } from "../components/SafetyMenu";
 
 export default function BraiderDetail() {
   const { id } = useParams();
@@ -114,6 +115,13 @@ export default function BraiderDetail() {
                   </div>
                 </div>
               </div>
+              {user && user.username !== braider.username && (
+                <div className="row" style={{ marginTop: "1rem", alignItems: "center" }}>
+                  <Link to={`/messages/${braider.user_id}`} className="btn btn-ghost btn-sm" style={{ flex: "0 0 auto" }}>
+                    Message {braider.display_name}
+                  </Link>
+                </div>
+              )}
               {braider.bio && <p style={{ marginTop: "1rem" }}>{braider.bio}</p>}
               {braider.policy_text && (
                 <p className="muted" style={{ marginTop: "0.75rem" }}>
@@ -164,6 +172,10 @@ export default function BraiderDetail() {
               </div>
             )}
 
+            {user && user.username !== braider.username && (
+              <SafetyMenu userId={braider.user_id} name={braider.display_name} />
+            )}
+
             <h2>Reviews</h2>
             {braider.reviews.length === 0 ? (
               <p className="muted">No reviews yet. Book an appointment and be the first.</p>
@@ -173,6 +185,12 @@ export default function BraiderDetail() {
                   <div key={r.id} className="card">
                     <Stars rating={r.rating} /> <strong>{r.client_name}</strong>
                     {r.comment && <p style={{ margin: "0.4rem 0 0" }}>{r.comment}</p>}
+                    {r.braider_reply && (
+                      <div className="reply">
+                        <strong>{braider.display_name} replied</strong>
+                        <p>{r.braider_reply}</p>
+                      </div>
+                    )}
                     {r.photo_urls?.length > 0 && (
                       <div className="review-photos">
                         {r.photo_urls.map((u) => (

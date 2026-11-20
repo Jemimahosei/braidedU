@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { api } from "./lib/api";
 import { HashRouter, Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { Mark } from "./components/ui";
@@ -6,6 +8,7 @@ import Browse from "./pages/Browse";
 import BraiderDetail from "./pages/BraiderDetail";
 import { Confirm, Forgot, Login, Reset, Signup } from "./pages/Auth";
 import ClientDashboard from "./pages/ClientDashboard";
+import Messages from "./pages/Messages";
 import BraiderDashboard from "./pages/BraiderDashboard";
 
 function DashboardRoute() {
@@ -16,6 +19,14 @@ function DashboardRoute() {
 
 function Header() {
   const { user, signOut } = useAuth();
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!user) return;
+    const load = () => api.unread().then((r) => setUnread(r.unread)).catch(() => {});
+    load();
+    const t = window.setInterval(load, 60000);
+    return () => window.clearInterval(t);
+  }, [user]);
   const navigate = useNavigate();
   return (
     <header className="site-header">
@@ -28,7 +39,8 @@ function Header() {
           <Link to="/browse">Find a braider</Link>
           {user ? (
             <>
-              <Link to="/dashboard">My dashboard</Link>
+              <Link to="/messages">Messages{unread > 0 ? ` (${unread})` : ""}</Link>
+              <Link to="/dashboard">{user.role === "braider" ? "My chair" : "My bookings"}</Link>
               <span className="who">
                 {user.username} ({user.role})
               </span>
@@ -73,6 +85,8 @@ export default function App() {
             <Route path="/confirm" element={<Confirm />} />
             <Route path="/forgot" element={<Forgot />} />
             <Route path="/reset" element={<Reset />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/messages/:userId" element={<Messages />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

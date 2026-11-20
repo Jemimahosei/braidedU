@@ -421,6 +421,10 @@ def bookings(request):
     if role != "client":
         return Response({"detail": "Only clients can request bookings."}, status=status.HTTP_403_FORBIDDEN)
     listing = get_object_or_404(Listing, id=request.data.get("listing"))
+    from .views_social import is_blocked
+
+    if is_blocked(request.user, listing.braider.user):
+        return Response({"detail": "You can't book this braider."}, status=status.HTTP_403_FORBIDDEN)
     if not listing.is_active or not listing.braider.is_active:
         return Response({"detail": "That listing is not available."}, status=status.HTTP_400_BAD_REQUEST)
     try:
