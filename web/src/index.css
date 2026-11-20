@@ -1033,4 +1033,30 @@ a.tag:active {
   .bubble {
     max-width: 90%;
   }
+
+/* ---- browse: style chips, collapsed filters, empty card ---- */
+.more-filters {
+  margin-top: 1rem;
+}
+.more-filters summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--green);
+  width: fit-content;
+}
+.result-count {
+  margin: 1.5rem 0 0;
+  font-weight: 600;
+}
+.empty-card {
+  margin-top: 0.75rem;
+  background: var(--soft);
+  border-radius: var(--r-card);
+  padding: 2.25rem 1.5rem;
+  text-align: center;
+}
+.empty-card p {
+  margin: 0.4rem auto 1.1rem;
+  max-width: 38rem;
+  color: var(--ink-2, var(--ink));
 }
