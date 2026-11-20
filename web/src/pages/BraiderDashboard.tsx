@@ -11,7 +11,8 @@ import {
   type BraidStyle,
   type Listing,
 } from "../lib/api";
-import { StatusPill, Stars } from "../components/ui";
+import { StatusPill, Stars, Avatar } from "../components/ui";
+import { PhotoField } from "../components/PhotoField";
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
@@ -29,6 +30,7 @@ export default function BraiderDashboard() {
   const [newPrice, setNewPrice] = useState("");
   const [newDuration, setNewDuration] = useState("180");
   const [newDesc, setNewDesc] = useState("");
+  const [newPhoto, setNewPhoto] = useState<string[]>([]);
 
   const load = () => {
     api.myBraiderProfile().then(setProfile).catch(() => setProfile(null));
@@ -65,11 +67,13 @@ export default function BraiderDashboard() {
         description: newDesc,
         price: newPrice,
         duration_minutes: Number(newDuration),
+        photo_url: newPhoto[0] || "",
       });
       setNotice("Listing published.");
       setNewTitle("");
       setNewDesc("");
       setNewPrice("");
+      setNewPhoto([]);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create the listing.");
@@ -96,6 +100,7 @@ export default function BraiderDashboard() {
         campus_area: profile.campus_area,
         location_detail: profile.location_detail,
         instagram: profile.instagram,
+        photo_url: profile.photo_url,
         years_experience: profile.years_experience,
         available_days: profile.available_days,
         available_start_time: profile.available_start_time,
@@ -245,6 +250,10 @@ export default function BraiderDashboard() {
                 <label htmlFor="nl-desc">Description (optional)</label>
                 <input id="nl-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Hair included, mid-back length" />
               </div>
+              <div>
+                <label>Photo of this style (optional)</label>
+                <PhotoField kind="work" urls={newPhoto} onChange={setNewPhoto} label="Add photo" />
+              </div>
               <button className="btn" type="submit">
                 Publish listing
               </button>
@@ -253,10 +262,13 @@ export default function BraiderDashboard() {
             {listings.length === 0 && <p className="muted">No listings yet. Add your first one above.</p>}
             {listings.map((l) => (
               <div key={l.id} className="panel" style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-                <div>
+                <div style={{ display: "flex", gap: "0.9rem", alignItems: "center" }}>
+                  {l.photo_url && <Avatar name={l.title} src={l.photo_url} />}
+                  <div>
                   <strong>{l.title}</strong>
                   <div className="muted">
                     {l.style_name}, {formatPrice(l.price)}, {l.duration_minutes} min. {l.is_active ? "Live" : "Paused"}
+                  </div>
                   </div>
                 </div>
                 <button className="btn btn-ghost btn-sm" type="button" onClick={() => toggleListing(l)}>
@@ -269,6 +281,18 @@ export default function BraiderDashboard() {
 
         {tab === "profile" && profile && (
           <form onSubmit={saveProfile} className="panel stack">
+            <div>
+              <label>Profile photo</label>
+              <PhotoField
+                kind="profile"
+                urls={profile.photo_url ? [profile.photo_url] : []}
+                onChange={(u) => setProfile({ ...profile, photo_url: u[0] || "" })}
+                label="Add photo"
+              />
+              <p className="muted" style={{ marginTop: "0.4rem" }}>
+                A clear photo of you or your work, only with your say-so. You can remove it any time.
+              </p>
+            </div>
             <div className="row">
               <div>
                 <label htmlFor="pf-name">Display name</label>

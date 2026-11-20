@@ -63,6 +63,7 @@ class BraiderProfile(models.Model):
     # Free-text detail, e.g. a dorm or building clients should meet at.
     location_detail = models.CharField(max_length=160, blank=True)
     instagram = models.CharField(max_length=120, blank=True)
+    photo_url = models.URLField(max_length=500, blank=True)
     years_experience = models.PositiveIntegerField(default=0)
     # e.g. ["fri", "sat", "sun"] plus an optional daily window.
     available_days = models.JSONField(default=list, blank=True)
@@ -117,6 +118,7 @@ class Listing(models.Model):
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=8, decimal_places=2)
     duration_minutes = models.PositiveIntegerField()
+    photo_url = models.URLField(max_length=500, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -162,6 +164,7 @@ class Review(models.Model):
     braider = models.ForeignKey(BraiderProfile, on_delete=models.CASCADE, related_name="reviews")
     rating = models.PositiveSmallIntegerField()
     comment = models.TextField(blank=True)
+    photo_urls = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

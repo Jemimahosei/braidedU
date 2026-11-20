@@ -28,17 +28,6 @@ export function Login() {
     }
   };
 
-  const demoLogin = async (u: string) => {
-    setError("");
-    try {
-      const res = await api.login(u, "demo1234");
-      signIn(res.token, { username: res.username, role: res.role, profile_id: res.profile_id });
-      navigate("/dashboard");
-    } catch {
-      setError("Demo login failed. The server may still be waking up, so try again in a moment.");
-    }
-  };
-
   return (
     <div className="page">
       <div className="wrap" style={{ maxWidth: "560px" }}>
@@ -60,20 +49,6 @@ export function Login() {
             No account yet? <Link to="/signup">Sign up free</Link>.
           </p>
         </form>
-        <div className="panel stack" style={{ marginTop: "1rem" }}>
-          <strong>Try the demo</strong>
-          <p className="muted" style={{ margin: 0 }}>
-            Look around with a demo account. No sign-up needed.
-          </p>
-          <div className="row">
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => demoLogin("client_demo")}>
-              Demo client
-            </button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => demoLogin("braider_demo")}>
-              Demo braider
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
