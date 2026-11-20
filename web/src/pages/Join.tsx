@@ -1,33 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api, cap, CAMPUS_AREAS, sized, type BraidStyle } from "../lib/api";
+import { usePhotoUpload } from "../components/PhotoField";
 import { useAuth } from "../lib/auth";
-
-/** Upload one photo: returns an opener, the hidden file input and any error. */
-function usePhotoUpload(kind: "profile" | "work", onChange: (u: string) => void) {
-  const input = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const pick = async (f: File | undefined) => {
-    if (!f) return;
-    setBusy(true);
-    setErr("");
-    try {
-      onChange((await api.uploadPhoto(f, kind)).url);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "That photo could not be uploaded.");
-    } finally {
-      setBusy(false);
-      if (input.current) input.current.value = "";
-    }
-  };
-  return {
-    busy,
-    err,
-    open: () => input.current?.click(),
-    field: <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={(e) => pick(e.target.files?.[0])} />,
-  };
-}
 
 /** One dashed photo slot: click to upload, shows the photo once there is one. */
 function PhotoSlot({

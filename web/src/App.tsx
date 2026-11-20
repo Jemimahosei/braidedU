@@ -15,6 +15,7 @@ import PostingForm from "./pages/PostingForm";
 import Availability from "./pages/Availability";
 import MyPageEdit from "./pages/MyPageEdit";
 import Join from "./pages/Join";
+import BookingPage from "./pages/BookingPage";
 
 function DashboardRoute() {
   const { user } = useAuth();
@@ -111,6 +112,7 @@ export default function App() {
             <Route path="/reset" element={<Reset />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:userId" element={<Messages />} />
+            <Route path="/bookings/:id" element={<BookingPage />} />
             <Route path="/join" element={<Join />} />
             <Route path="/postings" element={<BraiderOnly><Postings /></BraiderOnly>} />
             <Route path="/postings/new" element={<BraiderOnly><PostingForm /></BraiderOnly>} />

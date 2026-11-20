@@ -1,44 +1,82 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, formatDate, formatPrice, formatTime, todayISO, SERVICE_PLACES, type Booking } from "../lib/api";
-import { StatusPill } from "../components/ui";
-import { PhotoField } from "../components/PhotoField";
+import {
+  api,
+  cap,
+  formatDate,
+  formatPrice,
+  formatTime,
+  initials,
+  sized,
+  SERVICE_PLACES,
+  TINTS,
+  todayISO,
+  type Booking,
+} from "../lib/api";
 
+export const CLIENT_STATUS: Record<string, string> = {
+  requested: "Requested",
+  accepted: "Accepted",
+  paid: "Paid",
+  confirmed: "Confirmed",
+  completed: "Completed",
+  declined: "Declined",
+  cancelled: "Cancelled",
+};
+
+/** The braider's photo (or initials on a tint), as a round avatar at a given size. */
+export function PersonDot({
+  name,
+  src,
+  size,
+  id,
+  faded,
+}: {
+  name: string;
+  src?: string;
+  size: number;
+  id: number;
+  faded?: boolean;
+}) {
+  const style = { width: size, height: size, opacity: faded ? 0.6 : 1 };
+  return src ? (
+    <img className="bk-dot" style={style} src={sized(src, size * 2)} alt={name} />
+  ) : (
+    <span className="bk-dot" style={{ ...style, background: TINTS[id % TINTS.length] }} aria-hidden="true">
+      {initials(name)}
+    </span>
+  );
+}
+
+const LIVE = ["requested", "accepted", "paid", "confirmed"];
+type Tab = "up" | "past" | "canc";
+
+/** Client bookings, with cancel and reschedule (mockup: Bookings.dc.html). */
 export default function ClientDashboard() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [tab, setTab] = useState<Tab>("up");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [reviewFor, setReviewFor] = useState<number | null>(null);
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-  const [shot, setShot] = useState<string[]>([]);
+  const [askCancel, setAskCancel] = useState<number | null>(null);
   const [moveFor, setMoveFor] = useState<number | null>(null);
   const [moveDate, setMoveDate] = useState("");
   const [moveSlots, setMoveSlots] = useState<string[] | null>(null);
-  const [receipt, setReceipt] = useState<Awaited<ReturnType<typeof api.receipt>> | null>(null);
-  const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
+  const [moveTime, setMoveTime] = useState("");
 
   const load = () => {
     api
       .bookings()
       .then(setBookings)
-      .catch((e) => setError(e instanceof Error ? e.message : "Could not load bookings."));
+      .catch((e) => {
+        setBookings([]);
+        setError(e instanceof Error ? e.message : "Could not load bookings.");
+      });
   };
   useEffect(load, []);
 
-  const cancel = async (id: number) => {
-    setError("");
-    try {
-      await api.bookingAction(id, "cancel");
-      setNotice("Booking cancelled.");
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Cancel failed.");
-    }
-  };
-
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setError("");
+    setNotice("");
     try {
       await fn();
       setNotice(ok);
@@ -50,207 +88,222 @@ export default function ClientDashboard() {
 
   const pickMoveDate = (b: Booking, d: string) => {
     setMoveDate(d);
+    setMoveTime("");
     setMoveSlots(null);
     if (d) api.slots(b.braider_id, String(b.listing), d).then((r) => setMoveSlots(r.slots)).catch(() => setMoveSlots([]));
   };
 
-  const submitReview = async (id: number) => {
-    setError("");
-    try {
-      await api.reviewBooking(id, rating, comment, reviewPhotos);
-      setNotice("Review posted. Thank you.");
-      setReviewFor(null);
-      setComment("");
-      setReviewPhotos([]);
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Review failed.");
-    }
-  };
+  const all = bookings ?? [];
+  const upcoming = all.filter((b) => LIVE.includes(b.status));
+  const past = all.filter((b) => b.status === "completed");
+  const cancelled = all.filter((b) => b.status === "cancelled" || b.status === "declined");
+  const tabs: [Tab, string][] = [
+    ["up", "Upcoming"],
+    ["past", "Past"],
+    ["canc", "Cancelled"],
+  ];
 
-  const live = ["requested", "accepted", "paid", "confirmed"];
-  const upcoming = bookings.filter((b) => live.includes(b.status));
-  const past = bookings.filter((b) => !live.includes(b.status));
-
-  const bookingCard = (b: Booking) => (
-    <article key={b.id} className="card">
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap" }}>
-        <h3>
-          <Link to={`/braiders/${b.braider_id}`}>{b.braider_name}</Link>
-        </h3>
-        <StatusPill status={b.status} />
-      </div>
-      <div className="meta">
-        {b.listing_title}, {b.style_name}
-      </div>
-      <div>
-        {formatDate(b.date)}, {formatTime(b.start_time)} to {formatTime(b.end_time)}.{" "}
-        {formatPrice(b.price)}
-      </div>
-      {b.notes && <p className="muted">“{b.notes}”</p>}
-      {b.place && <div className="meta">{SERVICE_PLACES[b.place] || b.place}</div>}
-      {b.status === "cancelled" && (
-        <p className="muted">
-          Cancelled by {b.cancelled_by === "braider" ? b.braider_name : "you"}
-          {b.cancel_reason ? `: ${b.cancel_reason}` : ""}
-        </p>
-      )}
-      {b.status === "accepted" && b.pay && (
-        <div className="panel soft stack">
-          <strong>Pay {b.braider_name} to hold your spot</strong>
-          <dl className="kv">
-            {b.pay.venmo && (<><dt>Venmo</dt><dd>{b.pay.venmo}</dd></>)}
-            {b.pay.zelle && (<><dt>Zelle</dt><dd>{b.pay.zelle}</dd></>)}
-            {b.pay.deposit_note && (<><dt>Deposit</dt><dd>{b.pay.deposit_note}</dd></>)}
-            <dt>Total</dt><dd>{formatPrice(b.price)}</dd>
-          </dl>
-          <p className="muted">
-            Venmo and Zelle have no buyer protection. Only pay the handle shown here, and send it
-            to friends and family, not as a purchase.
-          </p>
-          <div>
-            <label>Screenshot of your payment (optional)</label>
-            <PhotoField kind="reference" urls={shot} onChange={setShot} label="Add" />
+  const upCard = (b: Booking) => {
+    const free = new Date(b.cancel_deadline);
+    const inside = free.getTime() > Date.now();
+    const when = free.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    const place = b.place === "my_place" ? `${b.braider_name}'s place` : SERVICE_PLACES[b.place] || "";
+    return (
+      <section key={b.id} className="bk-card">
+        <div className="bk-top">
+          <PersonDot name={b.braider_name} src={b.braider_photo_url} size={64} id={b.braider_id} />
+          <div className="bk-who">
+            <div className="bk-name">{b.braider_name}</div>
+            <div>
+              {cap(b.style_name)}, {formatDate(b.date)}, {formatTime(b.start_time)}
+            </div>
           </div>
-          <button className="btn btn-sm" type="button" onClick={() => run(() => api.markPaid(b.id, shot[0] || ""), "Thanks. We told your braider to check.").then(() => setShot([]))}>
-            I've paid
-          </button>
+          <span className={`pill pill-${b.status}`}>{CLIENT_STATUS[b.status]}</span>
         </div>
-      )}
-      {b.status === "paid" && <p className="notice">Waiting for {b.braider_name} to confirm your payment.</p>}
-      {b.address && ["accepted", "paid", "confirmed"].includes(b.status) && (
-        <p><strong>Where:</strong> {b.address}</p>
-      )}
-      {(b.status === "confirmed" || b.status === "completed") && b.payment_confirmed_at && (
-        <button className="link-btn" type="button" onClick={() => api.receipt(b.id).then(setReceipt).catch(() => setError("Could not load the receipt."))}>
-          View receipt
-        </button>
-      )}
-      {receipt && receipt.receipt_no === b.id && (
-        <div className="panel soft">
-          <strong>Receipt #{receipt.receipt_no}</strong>
-          <dl className="kv" style={{ marginTop: "0.5rem" }}>
-            <dt>Service</dt><dd>{receipt.service}</dd>
-            <dt>Braider</dt><dd>{receipt.braider}</dd>
-            <dt>When</dt><dd>{formatDate(receipt.date)}, {formatTime(receipt.start_time)}</dd>
-            <dt>Paid</dt><dd>${Number(receipt.amount).toFixed(2)}</dd>
-          </dl>
+        <div className="bk-grid">
+          {(place || b.address) && (
+            <>
+              <span>Where</span>
+              <span>
+                {place}
+                {place && b.address ? ". " : ""}
+                {b.address}
+              </span>
+            </>
+          )}
+          <span>Cancel</span>
+          <span>
+            {inside ? `Free until ${when}, ${b.cancel_window_hours} hours before` : `Past the free window. ${b.braider_name} may keep any deposit`}
+          </span>
+          {b.notes && (
+            <>
+              <span>Notes</span>
+              <span>“{b.notes}”</span>
+            </>
+          )}
         </div>
-      )}
-      <div className="grow" />
-      <div className="row" style={{ gap: "0.5rem" }}>
-        <Link to={`/messages/${b.braider_user_id}`} className="btn btn-light btn-sm">
-          Message
-        </Link>
-        {live.includes(b.status) && (
-          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMoveFor(moveFor === b.id ? null : b.id)}>
-            Change time
+        <div className="bk-actions">
+          {(b.status === "accepted" || b.status === "paid" || b.status === "confirmed") && (
+            <Link to={`/bookings/${b.id}`} className="btn btn-sm">
+              {b.status === "accepted" ? `Pay ${b.braider_name}` : "View booking"}
+            </Link>
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setMoveFor(moveFor === b.id ? null : b.id);
+              setAskCancel(null);
+              setMoveDate("");
+              setMoveSlots(null);
+              setMoveTime("");
+            }}
+          >
+            Reschedule
           </button>
-        )}
-        {live.includes(b.status) && (
-          <button className="btn btn-ghost btn-sm" type="button" onClick={() => cancel(b.id)}>
-            Cancel booking
-          </button>
-        )}
-        {b.status === "completed" && reviewFor !== b.id && (
-          <button className="btn btn-sm" type="button" onClick={() => setReviewFor(b.id)}>
-            Leave a review
-          </button>
-        )}
-      </div>
-      {live.includes(b.status) && (
-        <p className="muted">
-          Free to cancel or move until {new Date(b.cancel_deadline).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
-          After that, {b.braider_name} may keep any deposit.
-        </p>
-      )}
-      {moveFor === b.id && (
-        <div className="stack">
-          <div>
-            <label htmlFor={`mv-${b.id}`}>New date</label>
-            <input id={`mv-${b.id}`} type="date" min={todayISO()} value={moveDate} onChange={(e) => pickMoveDate(b, e.target.value)} />
-          </div>
-          {moveDate && moveSlots === null && <p className="muted">Loading times…</p>}
-          {moveDate && moveSlots?.length === 0 && <p className="muted">No times open that day.</p>}
-          <div className="chip-row">
-            {moveSlots?.map((t) => (
-              <button key={t} type="button" className="chip" onClick={() => run(() => api.reschedule(b.id, moveDate, t), "Asked to move it. She will confirm the new time.").then(() => setMoveFor(null))}>
-                {formatTime(t)}
+          {askCancel !== b.id && (
+            <button type="button" className="bk-cancel" onClick={() => { setAskCancel(b.id); setMoveFor(null); }}>
+              Cancel booking
+            </button>
+          )}
+          <Link to={`/messages/${b.braider_user_id}`} style={{ fontWeight: 600 }}>
+            Message {b.braider_name}
+          </Link>
+        </div>
+        {askCancel === b.id && (
+          <div className="bk-confirm">
+            <strong>Cancel this booking?</strong>
+            <div>
+              {b.braider_name} gets a message right away.{" "}
+              {inside ? "You're inside her free cancel window." : "You're past her free cancel window, so she may keep any deposit."}
+            </div>
+            <div className="bk-actions" style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => run(() => api.bookingAction(b.id, "cancel"), "Booking cancelled.").then(() => setAskCancel(null))}
+              >
+                Yes, cancel
               </button>
-            ))}
+              <button type="button" className="btn btn-light" onClick={() => setAskCancel(null)}>
+                Keep it
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-      {reviewFor === b.id && (
-        <form
-          className="stack"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitReview(b.id);
-          }}
-        >
-          <div>
-            <label>Rating</label>
-            <div className="chip-row">
-              {[5, 4, 3, 2, 1].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className="chip"
-                  aria-pressed={rating === n}
-                  onClick={() => setRating(n)}
-                >
-                  {"★".repeat(n)}
+        )}
+        {moveFor === b.id && (
+          <div className="bk-resch">
+            <strong>Pick a new time</strong>
+            <div className="field" style={{ marginTop: 10, maxWidth: 240 }}>
+              <label htmlFor={`mv-${b.id}`} className="sr-only">New date</label>
+              <input id={`mv-${b.id}`} type="date" min={todayISO()} value={moveDate} onChange={(e) => pickMoveDate(b, e.target.value)} />
+            </div>
+            {moveDate && moveSlots === null && <p className="hint" style={{ marginTop: 10 }}>Loading times…</p>}
+            {moveDate && moveSlots?.length === 0 && <p className="hint" style={{ marginTop: 10 }}>No times open that day.</p>}
+            <div className="slot-row" style={{ marginTop: 10 }}>
+              {moveSlots?.map((t) => (
+                <button key={t} type="button" className="slot on-soft" aria-pressed={moveTime === t} onClick={() => setMoveTime(t)}>
+                  {formatTime(t).replace("AM", "am").replace("PM", "pm")}
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className="btn"
+              style={{ marginTop: 12 }}
+              disabled={!moveTime}
+              onClick={() =>
+                run(() => api.reschedule(b.id, moveDate, moveTime), `Sent to ${b.braider_name}. Your current time stays until she accepts.`).then(() => setMoveFor(null))
+              }
+            >
+              Send new time
+            </button>
           </div>
-          <div>
-            <label htmlFor={`c-${b.id}`}>What should the next person know?</label>
-            <textarea
-              id={`c-${b.id}`}
-              rows={2}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Neat parts, on time, gentle hands"
-            />
-          </div>
-          <div>
-            <label>Photos of the finished look (optional)</label>
-            <PhotoField kind="review" urls={reviewPhotos} onChange={setReviewPhotos} max={4} />
-          </div>
-          <button className="btn btn-sm" type="submit">
-            Post review
-          </button>
-        </form>
-      )}
-    </article>
-  );
+        )}
+      </section>
+    );
+  };
 
   return (
-    <div className="page">
-      <div className="wrap">
-        <h1>Your appointments</h1>
-        {error && <p className="error" style={{ marginTop: "1rem" }}>{error}</p>}
-        {notice && <p className="notice" style={{ marginTop: "1rem" }}>{notice}</p>}
-        <h2 style={{ marginTop: "1.5rem" }}>Upcoming</h2>
-        {upcoming.length === 0 ? (
-          <p className="muted">
-            Nothing booked yet. <Link to="/browse">Find a braider</Link>
-          </p>
-        ) : (
-          <div className="grid" style={{ marginTop: "1rem" }}>{upcoming.map(bookingCard)}</div>
-        )}
-        <h2 style={{ marginTop: "2rem" }}>Past</h2>
-        {past.length === 0 ? (
-          <p className="muted">No past appointments.</p>
-        ) : (
-          <div className="grid" style={{ marginTop: "1rem" }}>{past.map(bookingCard)}</div>
-        )}
-        <p className="muted" style={{ marginTop: "1rem" }}>
-          Reviews open once your braider marks a booking complete.
-        </p>
+    <main className="dash-main bk-main">
+      <h1>My bookings</h1>
+      <div className="bk-tabs" role="tablist" aria-label="Bookings">
+        {tabs.map(([k, label]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+            {label}
+          </button>
+        ))}
       </div>
-    </div>
+      {error && <p className="error" role="alert" style={{ marginTop: 16 }}>{error}</p>}
+      {notice && <p className="notice" role="status" style={{ marginTop: 16 }}>{notice}</p>}
+
+      {tab === "up" &&
+        (bookings !== null && upcoming.length === 0 ? (
+          <section className="bk-empty">
+            <strong>Nothing booked yet.</strong>
+            <div>Pick a style and see who does it.</div>
+            <Link to="/browse" className="btn">
+              Find a braider
+            </Link>
+          </section>
+        ) : (
+          upcoming.map(upCard)
+        ))}
+
+      {tab === "past" &&
+        (bookings !== null && past.length === 0 ? (
+          <section className="bk-empty small">No past bookings.</section>
+        ) : (
+          past.map((b) => (
+            <section key={b.id} className="bk-card">
+              <div className="bk-top">
+                <PersonDot name={b.braider_name} src={b.braider_photo_url} size={64} id={b.braider_id} />
+                <div className="bk-who">
+                  <div className="bk-name">{b.braider_name}</div>
+                  <div>
+                    {cap(b.style_name)}, {formatDate(b.date)}
+                  </div>
+                </div>
+                <span className="bk-name">{formatPrice(b.price)}</span>
+              </div>
+              <div className="bk-actions" style={{ gap: 14, marginTop: 18 }}>
+                <Link to={`/braiders/${b.braider_id}`} className="btn">
+                  Leave a review
+                </Link>
+                {b.payment_confirmed_at && (
+                  <Link to={`/bookings/${b.id}`} style={{ fontWeight: 600 }}>
+                    Receipt #{b.id}
+                  </Link>
+                )}
+                <Link to={`/braiders/${b.braider_id}`} style={{ fontWeight: 600 }}>
+                  Book again
+                </Link>
+              </div>
+            </section>
+          ))
+        ))}
+
+      {tab === "canc" &&
+        (bookings !== null && cancelled.length === 0 ? (
+          <section className="bk-empty small">No cancelled bookings.</section>
+        ) : (
+          cancelled.map((b) => (
+            <section key={b.id} className="bk-card">
+              <div className="bk-top">
+                <PersonDot name={b.braider_name} src={b.braider_photo_url} size={64} id={b.braider_id} faded />
+                <div className="bk-who">
+                  <div className="bk-name">{b.braider_name}</div>
+                  <div>
+                    {cap(b.style_name)}, {formatDate(b.date)},{" "}
+                    {b.status === "declined" ? "declined" : `cancelled by ${b.cancelled_by === "braider" ? b.braider_name : "you"}`}
+                    {b.cancel_reason ? `: ${b.cancel_reason}` : ""}
+                  </div>
+                </div>
+                <span className={`pill pill-${b.status}`}>{CLIENT_STATUS[b.status]}</span>
+              </div>
+            </section>
+          ))
+        ))}
+    </main>
   );
 }

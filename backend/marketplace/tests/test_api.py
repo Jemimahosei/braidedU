@@ -4,6 +4,7 @@ plus permission and validation guards."""
 from datetime import timedelta
 
 from django.utils import timezone
+from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
 from marketplace.models import Booking, BraidStyle
@@ -246,3 +247,32 @@ class ListingDeleteTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {braider_token.key}")
         response = self.client.delete(f"/api/listings/{listing_id}/")
         self.assertEqual(response.status_code, 400)
+
+
+class BookingBraiderPhotoTests(APITestCase):
+    def test_booking_carries_the_braiders_public_photo_link(self):
+        style = BraidStyle.objects.create(name="locs")
+        sign_up(self.client, "ph-braider", "braider")
+        self.client.patch("/api/braiders/me/", {"display_name": "Ph"}, format="json")
+        listing = self.client.post(
+            "/api/listings/", {"style": style.id, "title": "Locs", "price": "50.00", "duration_minutes": 60}, format="json"
+        ).data["id"]
+        self.client.credentials()
+        sign_up(self.client, "ph-client", "client")
+        today = timezone.localdate()
+        saturday = today + timedelta(days=(5 - today.weekday()) % 7 or 7)
+        made = self.client.post(
+            "/api/bookings/", {"listing": listing, "date": str(saturday), "start_time": "10:00"}, format="json"
+        )
+        self.assertEqual(made.status_code, 201)
+        self.assertIn("braider_photo_url", made.data)
+
+
+class ThreadProfileLinkTests(APITestCase):
+    def test_thread_with_a_braider_includes_her_profile_id(self):
+        braider = sign_up(self.client, "tp-braider", "braider")
+        self.client.credentials()
+        sign_up(self.client, "tp-client", "client")
+        response = self.client.get(f"/api/messages/{User.objects.get(username='tp-braider@cornell.edu').id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["profile_id"], braider["profile_id"])
