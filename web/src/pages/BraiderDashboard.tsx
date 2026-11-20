@@ -33,6 +33,8 @@ export default function BraiderDashboard() {
   const [newPrice, setNewPrice] = useState("");
   const [newDuration, setNewDuration] = useState("180");
   const [newDesc, setNewDesc] = useState("");
+  const [cancelId, setCancelId] = useState<number | null>(null);
+  const [cancelWhy, setCancelWhy] = useState("");
   const [timeOff, setTimeOff] = useState<TimeOff[]>([]);
   const [offFrom, setOffFrom] = useState("");
   const [offTo, setOffTo] = useState("");
@@ -48,10 +50,14 @@ export default function BraiderDashboard() {
   };
   useEffect(load, []);
 
-  const act = async (id: number, action: "accept" | "decline" | "complete") => {
+  const act = async (
+    id: number,
+    action: "accept" | "decline" | "complete" | "payment-received" | "braider-cancel",
+    body: Record<string, unknown> = {},
+  ) => {
     setError("");
     try {
-      await api.bookingAction(id, action);
+      await api.bookingAction(id, action, body);
       setNotice(
         action === "accept"
           ? "Booking accepted. It is on your schedule now."
@@ -116,6 +122,8 @@ export default function BraiderDashboard() {
         policy_text: profile.policy_text,
         reminders_enabled: profile.reminders_enabled,
         buffer_minutes: profile.buffer_minutes,
+        venmo_handle: profile.venmo_handle ?? "",
+        zelle_contact: profile.zelle_contact ?? "",
         years_experience: profile.years_experience,
         available_days: profile.available_days,
         available_start_time: profile.available_start_time,
@@ -137,7 +145,9 @@ export default function BraiderDashboard() {
   };
 
   const requests = bookings.filter((b) => b.status === "requested");
-  const schedule = bookings.filter((b) => b.status === "accepted" || b.status === "completed");
+  const schedule = bookings.filter((b) =>
+    ["accepted", "paid", "confirmed", "completed"].includes(b.status),
+  );
   const done = bookings.filter((b) => b.status === "completed").length;
 
   return (
@@ -220,10 +230,44 @@ export default function BraiderDashboard() {
                 </div>
                 {b.notes && <p className="muted">“{b.notes}”</p>}
                 <div className="grow" />
-                {b.status === "accepted" && (
-                  <button className="btn btn-sm" type="button" onClick={() => act(b.id, "complete")}>
-                    Mark complete
-                  </button>
+                {b.payment_screenshot_url && (
+                  <p>
+                    <a href={b.payment_screenshot_url} target="_blank" rel="noreferrer">
+                      See their payment screenshot
+                    </a>
+                  </p>
+                )}
+                <div className="row" style={{ gap: "0.5rem" }}>
+                  {(b.status === "accepted" || b.status === "paid") && (
+                    <button className="btn btn-sm" type="button" onClick={() => act(b.id, "payment-received")}>
+                      Payment received
+                    </button>
+                  )}
+                  {["accepted", "paid", "confirmed"].includes(b.status) && (
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => act(b.id, "complete")}>
+                      Mark complete
+                    </button>
+                  )}
+                  {["accepted", "paid", "confirmed"].includes(b.status) && cancelId !== b.id && (
+                    <button className="link-btn danger" type="button" onClick={() => setCancelId(b.id)}>
+                      Cancel appointment
+                    </button>
+                  )}
+                </div>
+                {cancelId === b.id && (
+                  <form
+                    className="stack"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      act(b.id, "braider-cancel", { reason: cancelWhy });
+                      setCancelId(null);
+                      setCancelWhy("");
+                    }}
+                  >
+                    <label htmlFor={`cw-${b.id}`}>Tell {b.client_name} why (they get an email)</label>
+                    <input id={`cw-${b.id}`} value={cancelWhy} onChange={(e) => setCancelWhy(e.target.value)} />
+                    <button className="btn btn-sm btn-danger" type="submit">Cancel and tell them</button>
+                  </form>
                 )}
               </article>
             ))}
@@ -402,6 +446,17 @@ export default function BraiderDashboard() {
                 </p>
               </div>
             )}
+            <div className="row">
+              <div>
+                <label htmlFor="pf-venmo">Venmo handle</label>
+                <input id="pf-venmo" value={profile.venmo_handle ?? ""} onChange={(e) => setProfile({ ...profile, venmo_handle: e.target.value })} placeholder="@your-handle" />
+              </div>
+              <div>
+                <label htmlFor="pf-zelle">Zelle email or phone</label>
+                <input id="pf-zelle" value={profile.zelle_contact ?? ""} onChange={(e) => setProfile({ ...profile, zelle_contact: e.target.value })} />
+              </div>
+            </div>
+            <p className="muted">Clients see these only after you accept their booking.</p>
             <div className="row">
               <div>
                 <label htmlFor="pf-cancel">Free cancellation until (hours before)</label>

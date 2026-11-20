@@ -24,6 +24,8 @@ ROLE_CHOICES = [
 BOOKING_STATUS_CHOICES = [
     ("requested", "Requested"),
     ("accepted", "Accepted"),
+    ("paid", "Client says paid"),
+    ("confirmed", "Payment received"),
     ("declined", "Declined"),
     ("completed", "Completed"),
     ("cancelled", "Cancelled"),
@@ -81,6 +83,9 @@ class BraiderProfile(models.Model):
     reminders_enabled = models.BooleanField(default=True)
     # Rest time kept between two appointments.
     buffer_minutes = models.PositiveIntegerField(default=15)
+    # How clients pay her. Shown to a client only once she accepts the booking.
+    venmo_handle = models.CharField(max_length=80, blank=True)
+    zelle_contact = models.CharField(max_length=120, blank=True)
     is_active = models.BooleanField(default=True)
     # True for seeded demo accounts; the frontend badges these "Demo profile".
     is_demo = models.BooleanField(default=False)
@@ -150,6 +155,16 @@ class Booking(models.Model):
     start_time = models.TimeField()
     status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default="requested")
     notes = models.TextField(blank=True)
+    # Which of her places this booking is at (see BraiderProfile.service_places).
+    place = models.CharField(max_length=20, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    payment_confirmed_at = models.DateTimeField(null=True, blank=True)
+    payment_screenshot_url = models.CharField(max_length=500, blank=True)
+    cancelled_by = models.CharField(max_length=10, blank=True)
+    cancel_reason = models.CharField(max_length=300, blank=True)
+    # Cancelled by the client inside the braider's cancel window.
+    late_cancel = models.BooleanField(default=False)
+    reminder_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
