@@ -23,6 +23,7 @@ export interface Listing {
   price: string;
   duration_minutes: number;
   is_active: boolean;
+  photo_url: string;
 }
 
 export interface Review {
@@ -31,6 +32,7 @@ export interface Review {
   client_name: string;
   rating: number;
   comment: string;
+  photo_urls: string[];
   created_at: string;
 }
 
@@ -42,6 +44,7 @@ export interface Braider {
   campus_area: string;
   location_detail: string;
   instagram: string;
+  photo_url: string;
   years_experience: number;
   available_days: string[];
   available_start_time: string | null;
@@ -74,6 +77,21 @@ export interface Booking {
   end_time: string;
   status: "requested" | "accepted" | "declined" | "completed" | "cancelled";
   notes: string;
+}
+
+export type PhotoKind = "profile" | "work" | "review" | "message" | "reference";
+
+export interface UploadedPhoto {
+  id: number;
+  url: string;
+  thumb_url: string;
+  large_url: string;
+}
+
+/** A smaller copy of a Cloudinary photo (fast pages); other links pass through. */
+export function sized(url: string, width: number): string {
+  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
+  return url.replace("/upload/", `/upload/f_auto,q_auto,w_${width},c_limit/`);
 }
 
 export interface AuthUser {
@@ -140,7 +158,8 @@ export class ApiError extends Error {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    // A multipart upload sets its own Content-Type (with the boundary).
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string> | undefined),
   };
   if (token) headers["Authorization"] = `Token ${token}`;
@@ -195,11 +214,18 @@ export const api = {
     request<Booking>("/bookings/", { method: "POST", body: JSON.stringify(data) }),
   bookingAction: (id: number, action: "accept" | "decline" | "complete" | "cancel") =>
     request<Booking>(`/bookings/${id}/${action}/`, { method: "POST" }),
-  reviewBooking: (id: number, rating: number, comment: string) =>
+  reviewBooking: (id: number, rating: number, comment: string, photo_urls: string[] = []) =>
     request<Review>(`/bookings/${id}/review/`, {
       method: "POST",
-      body: JSON.stringify({ rating, comment }),
+      body: JSON.stringify({ rating, comment, photo_urls }),
     }),
+  uploadPhoto: (file: File, kind: PhotoKind) => {
+    const body = new FormData();
+    body.append("image", file);
+    body.append("kind", kind);
+    return request<UploadedPhoto>("/photos/", { method: "POST", body });
+  },
+  deletePhoto: (id: number) => request<void>(`/photos/${id}/`, { method: "DELETE" }),
   braiderReviews: (id: number) => request<Review[]>(`/braiders/${id}/reviews/`),
   login: (username: string, password: string) =>
     request<{ token: string; username: string; role: AuthUser["role"]; profile_id: number }>(

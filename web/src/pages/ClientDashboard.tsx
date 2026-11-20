@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, formatDate, formatPrice, formatTime, type Booking } from "../lib/api";
 import { StatusPill } from "../components/ui";
+import { PhotoField } from "../components/PhotoField";
 
 export default function ClientDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -10,6 +11,7 @@ export default function ClientDashboard() {
   const [reviewFor, setReviewFor] = useState<number | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
 
   const load = () => {
     api
@@ -33,10 +35,11 @@ export default function ClientDashboard() {
   const submitReview = async (id: number) => {
     setError("");
     try {
-      await api.reviewBooking(id, rating, comment);
+      await api.reviewBooking(id, rating, comment, reviewPhotos);
       setNotice("Review posted. Thank you.");
       setReviewFor(null);
       setComment("");
+      setReviewPhotos([]);
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Review failed.");
@@ -108,6 +111,10 @@ export default function ClientDashboard() {
               onChange={(e) => setComment(e.target.value)}
               placeholder="Neat parts, on time, gentle hands"
             />
+          </div>
+          <div>
+            <label>Photos of the finished look (optional)</label>
+            <PhotoField kind="review" urls={reviewPhotos} onChange={setReviewPhotos} max={4} />
           </div>
           <button className="btn btn-sm" type="submit">
             Post review
