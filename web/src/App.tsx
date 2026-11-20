@@ -1,5 +1,6 @@
 import { HashRouter, Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { Mark, WaxBand } from "./components/ui";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import BraiderDetail from "./pages/BraiderDetail";
@@ -20,7 +21,8 @@ function Header() {
     <header className="site-header">
       <div className="wrap">
         <Link className="brand" to="/">
-          braided<b>U</b>
+          <Mark />
+          braidedU
         </Link>
         <nav className="nav">
           <Link to="/browse">Find a braider</Link>
@@ -73,6 +75,7 @@ export default function App() {
           </Routes>
         </main>
         <footer className="site-footer">
+          <WaxBand />
           <div className="wrap">
             <p>
               <strong>braidedU</strong> is a campus marketplace for braiding

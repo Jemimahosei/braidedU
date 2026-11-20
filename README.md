@@ -115,13 +115,14 @@ one per booking.
 
 ## Design
 
-A salon price list, not a SaaS template: paper and ink with one loud colour.
-Cobalt blue for the hero and primary actions, marigold as the "your move"
-signal, Bricolage Grotesque for display type and Figtree for text. Braiders
-and prices read as rows like a service menu, a three-strand braid draws
-across the hero once on load, and the booking form is styled as an
-appointment slip. Initials avatars only: demo profiles never use scraped or
-real photos. The site shows a "server waking up" notice instead of an empty
+Shelf-edge price labels in a clean marketplace. Every style and listing is a
+yellow price label (big numeral, style name, how long it takes), the way a
+market stall or beauty-supply shelf shows the cost before you ask. Wax-print
+tiles (the fans, circles and bands of Ghanaian printed cloth) stand in for
+faces, so no profile ever shows a fake or scraped person. Ink, label yellow
+and wax green on a cool paper ground; Archivo for display and prices, Figtree
+for text. Direction chosen with Impeccable's new-work flow; product context in
+`PRODUCT.md`. The site shows a "server waking up" notice instead of an empty
 list when the free API host is asleep.
 
 ## Tests
