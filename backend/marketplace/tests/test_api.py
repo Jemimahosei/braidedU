@@ -199,3 +199,50 @@ class ApiFlowTests(APITestCase):
         response = self.client.get("/api/recommended/?style=cornrows")
         self.assertEqual(response.data, [])
         self.assertEqual(Booking.objects.count(), 0)
+
+
+class ListingDeleteTests(APITestCase):
+    def setUp(self):
+        self.style = BraidStyle.objects.create(name="twists")
+
+    def _listing(self):
+        response = self.client.post(
+            "/api/listings/",
+            {"style": self.style.id, "title": "Twists", "price": "60.00", "duration_minutes": 120},
+            format="json",
+        )
+        return response.data["id"]
+
+    def test_owner_can_delete_an_unbooked_listing(self):
+        sign_up(self.client, "del-braider", "braider")
+        listing_id = self._listing()
+        response = self.client.delete(f"/api/listings/{listing_id}/")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.client.get(f"/api/listings/{listing_id}/").status_code, 404)
+
+    def test_others_cannot_delete_it(self):
+        sign_up(self.client, "del-owner", "braider")
+        listing_id = self._listing()
+        self.client.credentials()
+        sign_up(self.client, "del-other", "braider")
+        self.assertEqual(self.client.delete(f"/api/listings/{listing_id}/").status_code, 403)
+        self.client.credentials()
+        self.assertIn(self.client.delete(f"/api/listings/{listing_id}/").status_code, (401, 403))
+
+    def test_a_listing_with_bookings_cannot_be_deleted(self):
+        sign_up(self.client, "del-booked", "braider")
+        listing_id = self._listing()
+        today = timezone.localdate()
+        saturday = today + timedelta(days=(5 - today.weekday()) % 7 or 7)
+        self.client.credentials()
+        sign_up(self.client, "del-client", "client")
+        self.client.post(
+            "/api/bookings/", {"listing": listing_id, "date": str(saturday), "start_time": "10:00"}, format="json"
+        )
+        self.client.credentials()
+        from rest_framework.authtoken.models import Token
+
+        braider_token = Token.objects.get(user__username__startswith="del-booked")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {braider_token.key}")
+        response = self.client.delete(f"/api/listings/{listing_id}/")
+        self.assertEqual(response.status_code, 400)

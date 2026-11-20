@@ -312,9 +312,11 @@ export const api = {
     const q = new URLSearchParams(params).toString();
     return request<Paginated<Listing>>(`/listings/${q ? `?${q}` : ""}`).then(unwrap<Listing>);
   },
+  listing: (id: number | string) => request<Listing>(`/listings/${id}/`),
   myListings: () => request<Listing[]>("/my-listings/"),
   createListing: (data: Record<string, unknown>) =>
     request<Listing>("/listings/", { method: "POST", body: JSON.stringify(data) }),
+  deleteListing: (id: number) => request<void>(`/listings/${id}/`, { method: "DELETE" }),
   updateListing: (id: number, data: Record<string, unknown>) =>
     request<Listing>(`/listings/${id}/`, { method: "PATCH", body: JSON.stringify(data) }),
   myBraiderProfile: () => request<Braider>("/braiders/me/"),
