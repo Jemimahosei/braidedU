@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, formatPrice, todayISO, type Braider, type BraidStyle } from "../lib/api";
-import { BraiderRow, RowsSkeleton, Strands, WakingNotice, useSlow } from "../components/ui";
+import { api, todayISO, type Braider, type BraidStyle } from "../lib/api";
+import { BraiderRow, PriceTag, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
 
 export default function Home() {
   const [styles, setStyles] = useState<BraidStyle[]>([]);
@@ -27,14 +27,16 @@ export default function Home() {
 
   useEffect(load, [load]);
 
-  // Per-style: how many braiders offer it and the lowest price, from real listings.
-  const styleIndex = useMemo(() => {
-    return styles.map((s) => {
-      const prices = braiders.flatMap((b) =>
-        b.listings.filter((l) => l.is_active && l.style_name === s.name).map((l) => Number(l.price)),
-      );
-      return { style: s, from: prices.length ? Math.min(...prices) : null };
-    });
+  // The shelf: each style with the lowest price any braider lists for it.
+  const shelf = useMemo(() => {
+    return styles
+      .map((s) => {
+        const prices = braiders.flatMap((b) =>
+          b.listings.filter((l) => l.is_active && l.style_name === s.name).map((l) => Number(l.price)),
+        );
+        return { style: s, from: prices.length ? Math.min(...prices) : null };
+      })
+      .filter((x) => x.from !== null) as { style: BraidStyle; from: number }[];
   }, [styles, braiders]);
 
   const search = (e: React.FormEvent) => {
@@ -49,16 +51,14 @@ export default function Home() {
     <>
       <section className="hero">
         <div className="wrap">
-          <div>
-            <h1>Get braided on campus. Know the price first.</h1>
-            <p>
-              Student braiders list their styles, prices and hours. You pick a
-              style and a day, and the booking lives in one place instead of a
-              pile of DMs.
-            </p>
-          </div>
-          <form className="slip" onSubmit={search}>
-            <h2>Find a braider</h2>
+          <h1>Every braid, priced before you ask.</h1>
+          <p className="lede">
+            Student braiders on campus list their styles, prices and hours.
+            Pick a style and a day. The booking lives in one place, not in a
+            pile of DMs.
+          </p>
+
+          <form className="searchbar" onSubmit={search}>
             <div>
               <label htmlFor="h-style">Style</label>
               <select id="h-style" value={style} onChange={(e) => setStyle(e.target.value)}>
@@ -84,32 +84,33 @@ export default function Home() {
               Show braiders
             </button>
           </form>
+
+          <p className="shelf-note">Or start from what it costs. Lowest price listed for each style:</p>
+          {loading ? (
+            <div className="shelf" aria-hidden="true" style={{ minHeight: "92px" }} />
+          ) : shelf.length === 0 ? (
+            <div className="shelf">
+              <span className="muted">No prices are listed yet.</span>
+            </div>
+          ) : (
+            <div className="shelf">
+              {shelf.map(({ style: s, from }, i) => (
+                <PriceTag
+                  key={s.id}
+                  name={s.name}
+                  price={from}
+                  meta="and up"
+                  to={`/browse?style=${encodeURIComponent(s.name)}`}
+                  index={i}
+                  place
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <Strands />
       </section>
 
-      <section className="section">
-        <div className="wrap">
-          <h2>What are you getting done?</h2>
-          <p className="lede">Each style shows the lowest price a braider has listed for it.</p>
-          <div style={{ marginTop: "1.5rem" }}>
-            {loading ? (
-              <RowsSkeleton count={2} />
-            ) : (
-              <div className="index">
-                {styleIndex.map(({ style: s, from }) => (
-                  <Link key={s.id} to={`/browse?style=${encodeURIComponent(s.name)}`}>
-                    {s.name}
-                    <span>{from !== null ? `from ${formatPrice(from)}` : "no listings yet"}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="section" style={{ paddingTop: 0 }}>
+      <section className="section" style={{ paddingTop: "1.5rem" }}>
         <div className="wrap">
           <div
             style={{
@@ -118,10 +119,10 @@ export default function Home() {
               alignItems: "end",
               flexWrap: "wrap",
               gap: "1rem",
-              marginBottom: "1.5rem",
+              marginBottom: "1.25rem",
             }}
           >
-            <h2>Braiders near you</h2>
+            <h2>Braiders on campus</h2>
             <Link to="/browse">See everyone</Link>
           </div>
           {slow && loading && <WakingNotice />}

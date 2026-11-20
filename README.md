@@ -2,6 +2,10 @@
 
 *Formerly Kormo Mela.*
 
+**Live demo: https://braidedu-frontend.onrender.com**
+(The API sleeps when idle, so the first load can take up to a minute. The
+site tells you when it is waking up. Use the demo accounts below to look around.)
+
 A marketplace for braiding services for Black women on campus. Clients
 find student braiders, see real prices and durations up front, and request
 appointments. Braiders list their styles, manage requests, and build a
@@ -12,6 +16,16 @@ marketplace linking consumers with verified workers via profiles, reviews,
 and direct communication), with jem's twist: braiding services, by and for
 students on campus.
 
+## Pages
+
+| Route | Page | Who |
+| --- | --- | --- |
+| `/` | Home: find-a-braider search, styles with lowest prices, featured braiders, how booking works | Everyone |
+| `/browse` | Filter braiders by style, date, campus area and budget; ranked when a style and date are chosen | Everyone |
+| `/braiders/:id` | Braider profile: bio, hours, priced listings, reviews, booking form | Everyone (booking needs a client account) |
+| `/signup`, `/login` | Create an account as a client or a braider, or try a demo account | Everyone |
+| `/dashboard` | Client: upcoming and past appointments, cancel, review. Braider: requests, schedule, listings, profile | Signed in |
+
 ## Stack
 
 - **Backend:** Django 5 + Django REST Framework, token auth. SQLite by
@@ -20,7 +34,9 @@ students on campus.
   as a plain static site. Talks to the Django API.
 - **Mobile app:** Expo / React Native (`frontend/`), kept for future mobile
   work. The website is the primary deliverable.
-- **Deploy:** `render.yaml` — Django web service + static frontend on Render.
+- **Deploy:** `render.yaml` (Django web service + static frontend on Render,
+  the current live demo). `backend/vercel.json` + `backend/api/index.py` and
+  `web/vercel.json` are ready for a Vercel deployment (see `DEPLOY_NOTES.md`).
 
 ## Run locally
 
@@ -99,10 +115,15 @@ one per booking.
 
 ## Design
 
-Warm, editorial, braid-inspired — not a generic marketplace template:
-cream + espresso + gold + terracotta, Fraunces display type, a woven
-three-strand braid band, initials avatars in warm tones. No photos: demo
-profiles use initials, never scraped or real images.
+Shelf-edge price labels in a clean marketplace. Every style and listing is a
+yellow price label (big numeral, style name, how long it takes), the way a
+market stall or beauty-supply shelf shows the cost before you ask. Wax-print
+tiles (the fans, circles and bands of Ghanaian printed cloth) stand in for
+faces, so no profile ever shows a fake or scraped person. Ink, label yellow
+and wax green on a cool paper ground; Archivo for display and prices, Figtree
+for text. Direction chosen with Impeccable's new-work flow; product context in
+`PRODUCT.md`. The site shows a "server waking up" notice instead of an empty
+list when the free API host is asleep.
 
 ## Tests
 
