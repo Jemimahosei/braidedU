@@ -49,6 +49,13 @@ export interface Braider {
   available_days: string[];
   available_start_time: string | null;
   available_end_time: string | null;
+  service_places: string[];
+  private_address?: string;
+  cancel_window_hours: number;
+  deposit_note: string;
+  policy_text: string;
+  reminders_enabled: boolean;
+  buffer_minutes: number;
   is_active: boolean;
   is_demo: boolean;
   average_rating: number | null;
@@ -58,6 +65,13 @@ export interface Braider {
   match_score?: number;
   match_breakdown?: Record<string, number>;
   cheapest_listing?: Listing;
+}
+
+export interface TimeOff {
+  id: number;
+  start_date: string;
+  end_date: string;
+  note: string;
 }
 
 export interface Booking {
@@ -198,6 +212,14 @@ export const api = {
     return request<Paginated<Braider>>(`/braiders/${q ? `?${q}` : ""}`).then(unwrap<Braider>);
   },
   braider: (id: number | string) => request<Braider>(`/braiders/${id}/`),
+  slots: (braiderId: number | string, listing: string, date: string) =>
+    request<{ date: string; slots: string[] }>(
+      `/braiders/${braiderId}/slots/?listing=${listing}&date=${date}`,
+    ),
+  timeOff: () => request<TimeOff[]>("/braiders/me/time-off/"),
+  addTimeOff: (data: { start_date: string; end_date: string; note: string }) =>
+    request<TimeOff>("/braiders/me/time-off/", { method: "POST", body: JSON.stringify(data) }),
+  removeTimeOff: (id: number) => request<void>(`/braiders/me/time-off/${id}/`, { method: "DELETE" }),
   recommended: (params: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
     return request<Braider[]>(`/recommended/?${q}`);
@@ -267,6 +289,12 @@ export const CAMPUS_AREAS: Record<string, string> = {
   collegetown: "Collegetown",
   east: "East Campus",
   off_campus: "Off Campus",
+};
+
+export const SERVICE_PLACES: Record<string, string> = {
+  my_place: "At my place",
+  client_place: "I come to you",
+  campus_space: "A campus space",
 };
 
 export const WEEKDAYS: Record<string, string> = {
