@@ -90,6 +90,8 @@ Base: `/api/`. Auth: `Authorization: Token <key>`.
 - `POST /api/bookings/<id>/accept|decline|complete/` — braider; `cancel/` — client
 - `POST /api/bookings/<id>/review/` `{rating 1-5, comment}` — client, completed only
 - `GET /api/braiders/<id>/reviews/` — public
+- `POST /api/photos/` multipart `{image, kind: profile|work|review|message|reference}` → `{id, url, thumb_url, large_url}` — signed in; JPG/PNG/WebP/GIF up to 10 MB
+- `DELETE /api/photos/<id>/` — owner only; removes the file from storage too
 
 Booking rules: date cannot be in the past; a braider cannot be double-booked
 (accepted bookings block overlapping times); reviews only after completion,
@@ -105,7 +107,16 @@ one per booking.
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated, default `127.0.0.1,localhost,10.0.2.2` |
 | `DJANGO_CORS_ALLOW_ALL` | `1`/`0`, default `1` when DEBUG else `0` |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | Comma-separated origins when not allow-all |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Photo storage (Cloudinary free plan). All three set → photos upload to Cloudinary and are served resized and compressed. Unset → saved to local disk (development only; Render wipes it on redeploy) |
 | `VITE_API_URL` | API base URL baked into the website build |
+
+## Photos
+
+The database stores only a photo's link; the file lives in Cloudinary. Uploads are
+checked (real image, allowed type, 10 MB cap), kept to 1800 px on the long side, and
+delivered as `thumb_url` (480 px) or `large_url` (1200 px) in an automatic modern
+format so pages stay fast. Users can delete their own photos, which also removes
+the stored file.
 
 ## Design
 
@@ -123,5 +134,5 @@ list when the free API host is asleep.
 
 ```bash
 cd backend
-.venv/bin/python manage.py test marketplace   # 10 tests
+.venv/bin/python manage.py test marketplace   # 19 tests
 ```
