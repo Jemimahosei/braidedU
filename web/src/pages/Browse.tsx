@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, CAMPUS_AREAS, type Braider, type BraidStyle } from "../lib/api";
-import { BraiderCard } from "../components/ui";
+import { api, CAMPUS_AREAS, todayISO, type Braider, type BraidStyle } from "../lib/api";
+import { BraiderRow, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
 
 export default function Browse() {
   const [params, setParams] = useSearchParams();
@@ -9,6 +9,7 @@ export default function Browse() {
   const [results, setResults] = useState<Braider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const slow = useSlow(loading);
 
   const style = params.get("style") || "";
   const date = params.get("date") || "";
@@ -30,7 +31,8 @@ export default function Browse() {
             date,
             ...(maxPrice ? { max_price: maxPrice } : {}),
           });
-          setResults(ranked);
+          // The ranked endpoint has no area filter, so apply it here.
+          setResults(campus ? ranked.filter((b) => b.campus_area === campus) : ranked);
         } else {
           const q: Record<string, string> = {};
           if (style) q.style = style;
@@ -59,11 +61,10 @@ export default function Browse() {
   return (
     <div className="page">
       <div className="wrap">
-        <p className="eyebrow">Browse braiders</p>
         <h1>Find your braider</h1>
         <p className="lede">
           {style && date
-            ? `Ranked for ${style} on ${date} — availability, reviews, price and experience all counted.`
+            ? `Ranked for ${style} on ${date}. Availability, reviews, price and experience all count.`
             : "Filter by style, place, or budget. Pick a date too and we will rank braiders for that day."}
         </p>
 
@@ -82,7 +83,7 @@ export default function Browse() {
             </div>
             <div>
               <label htmlFor="f-date">Date</label>
-              <input id="f-date" type="date" value={date} onChange={(e) => set("date", e.target.value)} />
+              <input id="f-date" type="date" min={todayISO()} value={date} onChange={(e) => set("date", e.target.value)} />
             </div>
             <div>
               <label htmlFor="f-area">Campus area</label>
@@ -110,17 +111,18 @@ export default function Browse() {
         </div>
 
         {error && <p className="error" style={{ marginTop: "1rem" }}>{error}</p>}
+        {slow && loading && <div style={{ marginTop: "1rem" }}><WakingNotice /></div>}
         {loading ? (
-          <p className="muted" style={{ marginTop: "1.5rem" }}>Loading braiders…</p>
+          <div style={{ marginTop: "1.5rem" }}><RowsSkeleton /></div>
         ) : results.length === 0 ? (
           <p className="muted" style={{ marginTop: "1.5rem" }}>
-            Nobody matches that yet. Try widening the style or budget — or{" "}
+            Nobody matches that yet. Try a different style or budget, or{" "}
             <a href="#/signup?role=braider">list your own chair</a>.
           </p>
         ) : (
-          <div className="grid" style={{ marginTop: "1.5rem" }}>
+          <div className="rows" style={{ marginTop: "1.5rem" }}>
             {results.map((b) => (
-              <BraiderCard key={b.id} braider={b} />
+              <BraiderRow key={b.id} braider={b} />
             ))}
           </div>
         )}

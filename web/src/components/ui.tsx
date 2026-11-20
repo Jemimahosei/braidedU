@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   campusLabel,
@@ -8,13 +9,15 @@ import {
   type Listing,
 } from "../lib/api";
 
-const AVATAR_TONES = ["#6b3049", "#4a2e1b", "#8a5a10", "#2f5d3a", "#7a3b1e", "#3d4a6b"];
+const AVATAR_TONES = ["#1a2a9e", "#15131f", "#7a3b1e", "#1f7a4d", "#8a2a5c", "#3a4a6b"];
 
 export function toneFor(name: string): string {
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 997;
   return AVATAR_TONES[h % AVATAR_TONES.length];
 }
+
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
 export function Avatar({ name, large }: { name: string; large?: boolean }) {
   return (
@@ -28,8 +31,30 @@ export function Avatar({ name, large }: { name: string; large?: boolean }) {
   );
 }
 
-export function BraidBand() {
-  return <div className="braid-band" aria-hidden="true" />;
+/** Three strands weaving across the hero. Drawn once on load, never looped. */
+export function Strands() {
+  const W = 1440;
+  const H = 110;
+  const make = (phase: number) => {
+    const pts: string[] = [];
+    for (let x = 0; x <= W; x += 12) {
+      const y = H / 2 + 34 * Math.sin((x / W) * Math.PI * 2 * 5 + phase);
+      pts.push(`${x === 0 ? "M" : "L"}${x} ${y.toFixed(1)}`);
+    }
+    return pts.join(" ");
+  };
+  return (
+    <svg
+      className="strands"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      <path className="s3" pathLength={1} d={make((Math.PI * 4) / 3)} />
+      <path className="s2" pathLength={1} d={make((Math.PI * 2) / 3)} />
+      <path className="s1" pathLength={1} d={make(0)} />
+    </svg>
+  );
 }
 
 export function DemoBadge() {
@@ -38,7 +63,7 @@ export function DemoBadge() {
 
 export function Stars({ rating }: { rating: number | null }) {
   if (rating === null || rating === undefined) {
-    return <span className="muted">New — no reviews yet</span>;
+    return <span className="muted">New, no reviews yet</span>;
   }
   const full = Math.round(rating);
   return (
@@ -53,57 +78,76 @@ export function StatusPill({ status }: { status: string }) {
   return <span className={`pill pill-${status}`}>{status}</span>;
 }
 
-export function BraiderCard({ braider }: { braider: Braider }) {
+/**
+ * The API runs on a free host that sleeps when idle, so the first request can
+ * take about a minute. After a few seconds of waiting, say so instead of
+ * leaving the person to wonder (or worse, showing an empty list).
+ */
+export function useSlow(loading: boolean, afterMs = 3500): boolean {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return;
+    }
+    const t = window.setTimeout(() => setSlow(true), afterMs);
+    return () => window.clearTimeout(t);
+  }, [loading, afterMs]);
+  return slow;
+}
+
+export function WakingNotice() {
+  return (
+    <p className="waking" role="status">
+      The server was asleep and is waking up. The first load can take up to a
+      minute, then it stays fast.
+    </p>
+  );
+}
+
+export function RowsSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="rows" aria-hidden="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="skeleton" />
+      ))}
+    </div>
+  );
+}
+
+export function BraiderRow({ braider }: { braider: Braider }) {
   const active = braider.listings.filter((l) => l.is_active);
   const from = active.length ? Math.min(...active.map((l) => Number(l.price))) : null;
   const styles = [...new Set(active.map((l) => l.style_name))];
+  const where = braider.campus_area ? campusLabel(braider.campus_area) : "On campus";
   return (
-    <article className="card">
-      <div className="row" style={{ alignItems: "center", gap: "0.85rem" }}>
-        <Avatar name={braider.display_name} />
-        <div>
-          <h3>
-            <Link to={`/braiders/${braider.id}`}>{braider.display_name}</Link>
-          </h3>
-          <div className="meta">
-            {braider.campus_area ? campusLabel(braider.campus_area) : "On campus"}
-            {braider.years_experience > 0 && ` · ${braider.years_experience} yrs braiding`}
-          </div>
-        </div>
-      </div>
+    <article className="braider-row">
+      <Avatar name={braider.display_name} />
       <div>
-        {braider.is_demo && <DemoBadge />} <Stars rating={braider.average_rating} />
-        {braider.review_count > 0 && (
-          <span className="muted"> ({braider.review_count})</span>
-        )}
-      </div>
-      {braider.match_score !== undefined && (
-        <div className="muted">
-          Match <strong>{braider.match_score}/100</strong>
-          {braider.cheapest_listing && (
-            <> · {braider.cheapest_listing.title} from {formatPrice(braider.cheapest_listing.price)}</>
-          )}
+        <h3>
+          <Link to={`/braiders/${braider.id}`}>{braider.display_name}</Link>
+        </h3>
+        <div className="styles">{styles.length ? styles.slice(0, 5).map(titleCase).join(", ") : "No styles listed yet"}</div>
+        <div className="where">
+          {where}
+          {braider.years_experience > 0 && `, ${braider.years_experience} yrs braiding`}
+          {braider.match_score !== undefined && `, match ${braider.match_score}/100`}
         </div>
-      )}
-      <div className="chip-row">
-        {styles.slice(0, 4).map((s) => (
-          <span key={s} className="pill">
-            {s}
-          </span>
-        ))}
+        <div style={{ marginTop: "0.3rem" }}>
+          {braider.is_demo && <DemoBadge />} <Stars rating={braider.average_rating} />
+          {braider.review_count > 0 && <span className="muted"> ({braider.review_count})</span>}
+        </div>
       </div>
-      <div className="grow" />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span className="price">
-          {from !== null ? (
-            <>
-              from {formatPrice(from)} <small>/ style</small>
-            </>
-          ) : (
-            <small>No listings yet</small>
-          )}
-        </span>
-        <Link to={`/braiders/${braider.id}`} className="btn btn-sm">
+      <div className="cost">
+        {from !== null ? (
+          <span className="price">
+            <small>from </small>
+            {formatPrice(from)}
+          </span>
+        ) : (
+          <span className="small">No prices yet</span>
+        )}
+        <Link to={`/braiders/${braider.id}`} className="btn btn-ghost btn-sm">
           View profile
         </Link>
       </div>
@@ -113,17 +157,24 @@ export function BraiderCard({ braider }: { braider: Braider }) {
 
 export function ListingRow({ listing }: { listing: Listing }) {
   return (
-    <div className="panel" style={{ padding: "1rem 1.25rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-        <div>
-          <strong>{listing.title}</strong>
-          <div className="muted">
-            {listing.style_name} · {formatDuration(listing.duration_minutes)}
-            {listing.description ? ` — ${listing.description}` : ""}
-          </div>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "1rem",
+        flexWrap: "wrap",
+        padding: "1rem 0",
+        borderBottom: "1px solid var(--chalk)",
+      }}
+    >
+      <div>
+        <strong>{listing.title}</strong>
+        <div className="muted">
+          {listing.style_name}, {formatDuration(listing.duration_minutes)}
+          {listing.description ? `. ${listing.description}` : ""}
         </div>
-        <span className="price">{formatPrice(listing.price)}</span>
       </div>
+      <span className="price">{formatPrice(listing.price)}</span>
     </div>
   );
 }
