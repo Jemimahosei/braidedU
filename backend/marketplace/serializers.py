@@ -131,21 +131,26 @@ class BookingSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=150)
-    password = serializers.CharField(write_only=True, min_length=4)
+    email = serializers.EmailField(max_length=150)
+    password = serializers.CharField(write_only=True, min_length=8)
     role = serializers.ChoiceField(choices=["braider", "client"])
     display_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
 
-    def validate_username(self, value):
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if not value.endswith("@cornell.edu"):
+            raise serializers.ValidationError("Use your @cornell.edu email address.")
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("That username is taken.")
+            raise serializers.ValidationError("That email already has an account. Try logging in.")
         return value
 
     def create(self, validated_data):
+        email = validated_data["email"]
+        # The account stays inactive until the emailed link is opened.
         user = User.objects.create_user(
-            username=validated_data["username"], password=validated_data["password"]
+            username=email, email=email, password=validated_data["password"], is_active=False
         )
-        display_name = validated_data.get("display_name") or validated_data["username"]
+        display_name = validated_data.get("display_name") or email.split("@")[0]
         if validated_data["role"] == "braider":
             BraiderProfile.objects.create(user=user, display_name=display_name)
         else:
