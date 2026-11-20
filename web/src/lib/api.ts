@@ -100,6 +100,7 @@ export interface ChatMessage {
 
 export interface Thread {
   user_id: number;
+  profile_id?: number | null;
   name: string;
   photo_url: string;
   role: string;
@@ -150,6 +151,7 @@ export interface Booking {
   cancel_deadline: string;
   cancel_window_hours: number;
   client_user_id: number;
+  braider_photo_url?: string;
   braider_user_id: number;
   // Only present once the braider has accepted.
   pay?: { venmo: string; zelle: string; deposit_note: string };
@@ -325,6 +327,7 @@ export const api = {
   myClientProfile: () => request<{ id: number; display_name: string }>("/clients/me/"),
   bookings: (status?: string) =>
     request<Booking[]>(`/bookings/${status ? `?status=${status}` : ""}`),
+  booking: (id: number | string) => request<Booking>(`/bookings/${id}/`),
   createBooking: (data: Record<string, unknown>) =>
     request<Booking>("/bookings/", { method: "POST", body: JSON.stringify(data) }),
   bookingAction: (

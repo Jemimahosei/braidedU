@@ -1,6 +1,32 @@
 import { useRef, useState } from "react";
 import { api, sized, type PhotoKind } from "../lib/api";
 
+/** Upload one photo: returns an opener, the hidden file input and any error. */
+export function usePhotoUpload(kind: PhotoKind, onChange: (u: string) => void) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const pick = async (f: File | undefined) => {
+    if (!f) return;
+    setBusy(true);
+    setErr("");
+    try {
+      onChange((await api.uploadPhoto(f, kind)).url);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "That photo could not be uploaded.");
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  };
+  return {
+    busy,
+    err,
+    open: () => input.current?.click(),
+    field: <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={(e) => pick(e.target.files?.[0])} />,
+  };
+}
+
 /**
  * Upload one or more photos. Calls the API for each file and hands the
  * resulting links back to the parent. Previews are shown with a remove button.
