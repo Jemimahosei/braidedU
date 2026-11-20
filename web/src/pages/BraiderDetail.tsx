@@ -256,7 +256,11 @@ export default function BraiderDetail() {
                 </a>
               )}
             </div>
-            {!isSelf && (
+            {isSelf ? (
+              <Link to="/my-page" className="btn btn-msg">
+                Edit my page
+              </Link>
+            ) : (
               <Link to={user ? `/messages/${braider.user_id}` : `/login?next=/messages/${braider.user_id}`} className="btn btn-msg">
                 Message {name}
               </Link>

@@ -283,7 +283,7 @@ class ListingListCreateView(generics.ListCreateAPIView):
         serializer.save(braider=profile)
 
 
-class ListingDetailView(generics.RetrieveUpdateAPIView):
+class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Listing.objects.select_related("braider", "style")
     serializer_class = ListingSerializer
     permission_classes = [permissions.AllowAny]
@@ -294,6 +294,15 @@ class ListingDetailView(generics.RetrieveUpdateAPIView):
         if role != "braider" or listing.braider_id != profile.id:
             raise PermissionDenied("Not your listing.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        role, profile = _role_and_profile(self.request.user)
+        if role != "braider" or instance.braider_id != profile.id:
+            raise PermissionDenied("Not your listing.")
+        # Deleting would also delete the bookings (and receipts) made on it.
+        if instance.bookings.exists():
+            raise ValidationError({"detail": "This posting has bookings, so it can't be deleted. Pause it instead."})
+        instance.delete()
 
 
 @api_view(["GET"])

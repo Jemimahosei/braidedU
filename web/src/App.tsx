@@ -9,25 +9,26 @@ import BraiderDetail from "./pages/BraiderDetail";
 import { Confirm, Forgot, Login, Reset, Signup } from "./pages/Auth";
 import ClientDashboard from "./pages/ClientDashboard";
 import Messages from "./pages/Messages";
-import BraiderDashboard from "./pages/BraiderDashboard";
+import BraiderRequests from "./pages/BraiderRequests";
+import Postings from "./pages/Postings";
+import PostingForm from "./pages/PostingForm";
+import Availability from "./pages/Availability";
+import MyPageEdit from "./pages/MyPageEdit";
 import Join from "./pages/Join";
 
 function DashboardRoute() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login?next=/dashboard" replace />;
-  return user.role === "braider" ? <BraiderDashboard /> : <ClientDashboard />;
+  return user.role === "braider" ? <BraiderRequests /> : <ClientDashboard />;
 }
 
-/** A braider nav link to one dashboard tab; current only when that tab is showing. */
-function DashLink({ tab, children }: { tab: string; children: React.ReactNode }) {
-  const { pathname, search } = useLocation();
-  const current = new URLSearchParams(search).get("tab") || "requests";
-  const on = pathname === "/dashboard" && current === tab;
-  return (
-    <Link to={tab === "requests" ? "/dashboard" : `/dashboard?tab=${tab}`} aria-current={on ? "page" : undefined}>
-      {children}
-    </Link>
-  );
+/** Pages that only a signed-in braider can use. */
+function BraiderOnly({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(pathname)}`} replace />;
+  if (user.role !== "braider") return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
 }
 
 function Header() {
@@ -52,10 +53,10 @@ function Header() {
         <nav className="nav">
           {braider ? (
             <>
-              <DashLink tab="requests">Requests</DashLink>
+              <NavLink to="/dashboard">Requests</NavLink>
               <NavLink to="/messages">Messages{unread > 0 ? ` (${unread})` : ""}</NavLink>
-              <DashLink tab="listings">Postings</DashLink>
-              <DashLink tab="profile">Availability</DashLink>
+              <NavLink to="/postings">Postings</NavLink>
+              <NavLink to="/availability">Availability</NavLink>
               {user?.profile_id && <NavLink to={`/braiders/${user.profile_id}`}>My page</NavLink>}
             </>
           ) : (
@@ -111,6 +112,11 @@ export default function App() {
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:userId" element={<Messages />} />
             <Route path="/join" element={<Join />} />
+            <Route path="/postings" element={<BraiderOnly><Postings /></BraiderOnly>} />
+            <Route path="/postings/new" element={<BraiderOnly><PostingForm /></BraiderOnly>} />
+            <Route path="/postings/:id/edit" element={<BraiderOnly><PostingForm /></BraiderOnly>} />
+            <Route path="/availability" element={<BraiderOnly><Availability /></BraiderOnly>} />
+            <Route path="/my-page" element={<BraiderOnly><MyPageEdit /></BraiderOnly>} />
             <Route path="/dashboard" element={<DashboardRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
