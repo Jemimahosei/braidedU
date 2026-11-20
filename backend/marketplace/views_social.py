@@ -105,6 +105,7 @@ def thread(request, user_id):
             "name": name,
             "photo_url": photo,
             "role": role,
+            "profile_id": other.braider_profile.id if role == "braider" else None,
             "can_reply": may_message(me, other),
             "blocked": Block.objects.filter(blocker=me, blocked=other).exists(),
             "messages": [_msg(m, me) for m in msgs],

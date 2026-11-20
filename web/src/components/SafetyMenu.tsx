@@ -1,18 +1,8 @@
 import { useState } from "react";
 import { api, REPORT_REASONS } from "../lib/api";
 
-/** Report or block another person. Shown on profiles and in message threads. */
-export function SafetyMenu({
-  userId,
-  name,
-  blocked,
-  onBlockChange,
-}: {
-  userId: number;
-  name: string;
-  blocked?: boolean;
-  onBlockChange?: (blocked: boolean) => void;
-}) {
+/** State and actions for reporting or blocking another person. */
+export function useSafety(userId: number, name: string, blocked?: boolean, onBlockChange?: (blocked: boolean) => void) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [detail, setDetail] = useState("");
@@ -34,41 +24,65 @@ export function SafetyMenu({
     try {
       const r = blocked ? await api.unblock(userId) : await api.block(userId);
       onBlockChange?.(r.blocked);
-      setMsg(r.blocked ? `${name} is blocked. They can't message or book you.` : `${name} is unblocked.`);
+      setMsg(r.blocked ? `Blocked. ${name} can no longer message you or book you.` : "");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "That didn't work.");
     }
   };
 
+  return { open, setOpen, reason, setReason, detail, setDetail, msg, setMsg, send, toggleBlock };
+}
+
+type Safety = ReturnType<typeof useSafety>;
+
+/** The "What happened?" form that opens under Report. */
+export function ReportForm({ userId, s }: { userId: number; s: Safety }) {
+  if (!s.open) return null;
   return (
-    <div className="stack">
-      <div className="row" style={{ gap: "1rem" }}>
-        <button type="button" className="link-btn danger" onClick={() => setOpen(!open)}>
+    <form onSubmit={s.send} className="report-form">
+      <div className="field">
+        <label htmlFor={`rp-${userId}`}>What happened?</label>
+        <select id={`rp-${userId}`} required value={s.reason} onChange={(e) => s.setReason(e.target.value)}>
+          <option value="">Pick one</option>
+          {Object.entries(REPORT_REASONS).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`rd-${userId}`}>Details (optional)</label>
+        <textarea id={`rd-${userId}`} rows={3} value={s.detail} onChange={(e) => s.setDetail(e.target.value)} />
+      </div>
+      <button className="btn btn-sm" type="submit">Send report</button>
+    </form>
+  );
+}
+
+/** Report or block another person, as small text buttons (profile page). */
+export function SafetyMenu({
+  userId,
+  name,
+  blocked,
+  onBlockChange,
+}: {
+  userId: number;
+  name: string;
+  blocked?: boolean;
+  onBlockChange?: (blocked: boolean) => void;
+}) {
+  const s = useSafety(userId, name, blocked, onBlockChange);
+  return (
+    <div className="safety">
+      <div className="safety-row">
+        <button type="button" className="text-btn" onClick={() => s.setOpen(!s.open)}>
           Report {name}
         </button>
-        <button type="button" className="link-btn" onClick={toggleBlock}>
+        <button type="button" className="text-btn danger" onClick={s.toggleBlock}>
           {blocked ? "Unblock" : "Block"}
         </button>
       </div>
-      {open && (
-        <form onSubmit={send} className="panel soft stack">
-          <div>
-            <label htmlFor={`rp-${userId}`}>What happened?</label>
-            <select id={`rp-${userId}`} required value={reason} onChange={(e) => setReason(e.target.value)}>
-              <option value="">Pick one</option>
-              {Object.entries(REPORT_REASONS).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`rd-${userId}`}>Details (optional)</label>
-            <textarea id={`rd-${userId}`} rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} />
-          </div>
-          <button className="btn btn-sm" type="submit">Send report</button>
-        </form>
-      )}
-      {msg && <p className="notice" role="status">{msg}</p>}
+      <ReportForm userId={userId} s={s} />
+      {s.msg && <p className="notice" role="status">{s.msg}</p>}
     </div>
   );
 }
