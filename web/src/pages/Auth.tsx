@@ -12,6 +12,36 @@ function useSignIn() {
   };
 }
 
+/** The single centered card from the mockup, with the Sign up / Log in switch on top. */
+function AuthCard({
+  tab,
+  children,
+  next,
+}: {
+  tab?: "signup" | "login";
+  children: React.ReactNode;
+  next?: string;
+}) {
+  const q = next && next !== "/dashboard" ? `?next=${encodeURIComponent(next)}` : "";
+  return (
+    <main className="auth-main">
+      <section className="auth-card">
+        {tab && (
+          <div className="seg auth-seg" role="tablist" aria-label="Sign up or log in">
+            <Link to={`/signup${q}`} role="tab" aria-selected={tab === "signup"}>
+              Sign up
+            </Link>
+            <Link to={`/login${q}`} role="tab" aria-selected={tab === "login"}>
+              Log in
+            </Link>
+          </div>
+        )}
+        {children}
+      </section>
+    </main>
+  );
+}
+
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,37 +78,32 @@ export function Login() {
   };
 
   return (
-    <div className="page">
-      <div className="wrap" style={{ maxWidth: "560px" }}>
-        <h1>Log in</h1>
-        <form onSubmit={submit} className="panel stack" style={{ marginTop: "1.5rem" }}>
-          <div>
-            <label htmlFor="li-email">Cornell email</label>
-            <input id="li-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="netid@cornell.edu" required autoComplete="username" />
-          </div>
-          <div>
-            <label htmlFor="li-pass">Password</label>
-            <input id="li-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
-          </div>
-          {error && <p className="error" role="alert">{error}</p>}
-          {unconfirmed && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={resend}>
-              Send me a new confirmation link
-            </button>
-          )}
-          {info && <p className="notice" role="status">{info}</p>}
-          <button className="btn" type="submit" disabled={busy}>
-            {busy ? "Logging in…" : "Log in"}
+    <AuthCard tab="login" next={next}>
+      <h1>Welcome back</h1>
+      <form onSubmit={submit} className="auth-form">
+        <div className="field">
+          <label htmlFor="li-email">Cornell email</label>
+          <input id="li-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="netid@cornell.edu" required autoComplete="username" />
+        </div>
+        <div className="field">
+          <label htmlFor="li-pass">Password</label>
+          <input id="li-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
+        {unconfirmed && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={resend}>
+            Send me a new confirmation link
           </button>
-          <p className="muted">
-            <Link to="/forgot">Forgot your password?</Link>
-          </p>
-          <p className="muted">
-            No account yet? <Link to="/signup">Sign up free</Link>.
-          </p>
-        </form>
-      </div>
-    </div>
+        )}
+        {info && <p className="notice" role="status">{info}</p>}
+        <Link to="/forgot" className="auth-link">
+          Forgot your password?
+        </Link>
+        <button className="btn btn-block" type="submit" disabled={busy}>
+          {busy ? "Logging in…" : "Log in"}
+        </button>
+      </form>
+    </AuthCard>
   );
 }
 
@@ -87,9 +112,7 @@ export function Signup() {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"braider" | "client">(
-    params.get("role") === "braider" ? "braider" : "client",
-  );
+  const role: "braider" | "client" = params.get("role") === "braider" ? "braider" : "client";
   const [error, setError] = useState("");
   const [sentTo, setSentTo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -110,62 +133,59 @@ export function Signup() {
 
   if (sentTo) {
     return (
-      <div className="page">
-        <div className="wrap" style={{ maxWidth: "560px" }}>
-          <div className="panel stack">
-            <h1>Check your email</h1>
-            <p>
-              We sent a confirmation link to <strong>{sentTo}</strong>. Open it to finish signing
-              up. It can take a minute, and it may land in spam.
-            </p>
-            <p className="muted">
-              Wrong address? <Link to="/signup">Start again</Link>.
-            </p>
-          </div>
-        </div>
-      </div>
+      <AuthCard>
+        <h1>Check your inbox</h1>
+        <p className="auth-lede">
+          We sent a confirmation link to {sentTo}. Open it to finish signing up. It can take a minute, and it may land in
+          spam.
+        </p>
+        <Link to="/login" className="btn btn-ghost auth-back">
+          Back to log in
+        </Link>
+      </AuthCard>
     );
   }
 
+  const typed = email.trim();
+  const bad = typed.length > 0 && !/@cornell\.edu$/i.test(typed);
+
   return (
-    <div className="page">
-      <div className="wrap" style={{ maxWidth: "560px" }}>
-        <h1>Create your account</h1>
-        <p className="lede">Free, and only for people with a Cornell email. An account is either a client or a braider.</p>
-        <form onSubmit={submit} className="panel stack" style={{ marginTop: "1.5rem" }}>
-          <div>
-            <label>I am here to</label>
-            <div className="chip-row">
-              <button type="button" className="chip" aria-pressed={role === "client"} onClick={() => setRole("client")}>
-                Get my hair braided
-              </button>
-              <button type="button" className="chip" aria-pressed={role === "braider"} onClick={() => setRole("braider")}>
-                Braid hair for others
-              </button>
-            </div>
-          </div>
-          <div>
-            <label htmlFor="su-display">Name people will see</label>
-            <input id="su-display" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={role === "braider" ? "e.g. Erica" : "e.g. Maya"} required />
-          </div>
-          <div>
-            <label htmlFor="su-email">Cornell email</label>
-            <input id="su-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="netid@cornell.edu" required autoComplete="username" />
-          </div>
-          <div>
-            <label htmlFor="su-pass">Password (8 or more characters)</label>
-            <input id="su-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-          </div>
-          {error && <p className="error" role="alert">{error}</p>}
-          <button className="btn" type="submit" disabled={busy}>
-            {busy ? "Creating…" : role === "braider" ? "Create braider account" : "Create client account"}
-          </button>
-          <p className="muted">
-            Already have an account? <Link to="/login">Log in</Link>.
-          </p>
-        </form>
-      </div>
-    </div>
+    <AuthCard tab="signup" next={params.get("next") || undefined}>
+      <h1>{role === "braider" ? "List your chair" : "Create your account"}</h1>
+      <form onSubmit={submit} className="auth-form" noValidate>
+        <div className="field">
+          <label htmlFor="su-display">First name</label>
+          <input id="su-display" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required autoComplete="given-name" />
+        </div>
+        <div className="field">
+          <label htmlFor="su-email">Cornell email</label>
+          <input id="su-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="netid@cornell.edu" required autoComplete="username" />
+          <span className="hint" role="status" style={bad ? { color: "var(--bad)" } : undefined}>
+            {bad ? "Use your @cornell.edu email." : "We'll email a link to confirm it's yours."}
+          </span>
+        </div>
+        <div className="field">
+          <label htmlFor="su-pass">Password</label>
+          <input id="su-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+          <span className="hint">8 or more characters.</span>
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="btn btn-block" type="submit" disabled={busy || bad}>
+          {busy ? "Creating…" : "Create account"}
+        </button>
+      </form>
+      <p className="auth-foot">
+        {role === "braider" ? (
+          <>
+            Want to book instead? <Link to="/signup">Create a client account</Link>
+          </>
+        ) : (
+          <>
+            Do you braid? <Link to="/signup?role=braider">List your chair</Link>
+          </>
+        )}
+      </p>
+    </AuthCard>
   );
 }
 
@@ -178,25 +198,26 @@ export function Confirm() {
   useEffect(() => {
     api
       .confirmEmail(token)
-      .then((res) => goIn(res, res.role === "braider" ? "/dashboard" : "/browse"))
+      .then((res) => goIn(res, res.role === "braider" ? "/join" : "/browse"))
       .catch((err) => setError(err instanceof ApiError ? err.detail : "Could not confirm."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   return (
-    <div className="page">
-      <div className="wrap" style={{ maxWidth: "560px" }}>
-        {error ? (
-          <div className="panel stack">
-            <h1>That link didn't work</h1>
-            <p className="error">{error}</p>
-            <Link to="/login" className="btn">Log in to get a new link</Link>
-          </div>
-        ) : (
-          <p className="muted" role="status">Confirming your email…</p>
-        )}
-      </div>
-    </div>
+    <AuthCard>
+      {error ? (
+        <>
+          <h1>That link didn't work</h1>
+          <p className="error" style={{ marginTop: 14 }}>{error}</p>
+          <Link to="/login" className="btn btn-ghost auth-back">Log in to get a new link</Link>
+        </>
+      ) : (
+        <>
+          <h1>Confirming your email</h1>
+          <p className="auth-lede" role="status">One moment…</p>
+        </>
+      )}
+    </AuthCard>
   );
 }
 
@@ -215,21 +236,34 @@ export function Forgot() {
     }
   };
 
+  if (done) {
+    return (
+      <AuthCard>
+        <h1>Check your inbox</h1>
+        <p className="auth-lede" role="status">{done}</p>
+        <Link to="/login" className="btn btn-ghost auth-back">
+          Back to log in
+        </Link>
+      </AuthCard>
+    );
+  }
+
   return (
-    <div className="page">
-      <div className="wrap" style={{ maxWidth: "560px" }}>
-        <h1>Forgot your password?</h1>
-        <form onSubmit={submit} className="panel stack" style={{ marginTop: "1.5rem" }}>
-          <div>
-            <label htmlFor="fp-email">Cornell email</label>
-            <input id="fp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="netid@cornell.edu" required />
-          </div>
-          {error && <p className="error" role="alert">{error}</p>}
-          {done && <p className="notice" role="status">{done}</p>}
-          <button className="btn" type="submit">Send reset link</button>
-        </form>
-      </div>
-    </div>
+    <AuthCard>
+      <h1>Reset your password</h1>
+      <p className="auth-lede">Enter your Cornell email and we'll send you a link.</p>
+      <form onSubmit={submit} className="auth-form">
+        <div className="field">
+          <label htmlFor="fp-email">Cornell email</label>
+          <input id="fp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="netid@cornell.edu" required />
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="btn btn-block" type="submit">Send reset link</button>
+        <Link to="/login" className="auth-link">
+          Back to log in
+        </Link>
+      </form>
+    </AuthCard>
   );
 }
 
@@ -250,21 +284,20 @@ export function Reset() {
   };
 
   return (
-    <div className="page">
-      <div className="wrap" style={{ maxWidth: "560px" }}>
-        <h1>Choose a new password</h1>
-        <form onSubmit={submit} className="panel stack" style={{ marginTop: "1.5rem" }}>
-          <div>
-            <label htmlFor="rp-pass">New password (8 or more characters)</label>
-            <input id="rp-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-          </div>
-          {error && <p className="error" role="alert">{error}</p>}
-          <button className="btn" type="submit">Save and log in</button>
-          <p className="muted">
-            Link expired? <Link to="/forgot">Ask for a new one</Link>.
-          </p>
-        </form>
-      </div>
-    </div>
+    <AuthCard>
+      <h1>Choose a new password</h1>
+      <form onSubmit={submit} className="auth-form">
+        <div className="field">
+          <label htmlFor="rp-pass">New password</label>
+          <input id="rp-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+          <span className="hint">8 or more characters.</span>
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="btn btn-block" type="submit">Save and log in</button>
+        <p className="auth-foot" style={{ margin: 0 }}>
+          Link expired? <Link to="/forgot">Ask for a new one</Link>.
+        </p>
+      </form>
+    </AuthCard>
   );
 }
