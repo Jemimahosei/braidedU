@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { api, CAMPUS_AREAS, todayISO, type Braider, type BraidStyle } from "../lib/api";
+import { Link, useSearchParams } from "react-router-dom";
+import { api, cap, CAMPUS_AREAS, todayISO, type Braider, type BraidStyle } from "../lib/api";
 import { BraiderRow, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
 
 export default function Browse() {
@@ -58,76 +58,88 @@ export default function Browse() {
     setParams(next);
   };
 
-  return (
-    <div className="page">
-      <div className="wrap">
-        <h1>Find your braider</h1>
-        <p className="lede">
-          {style && date
-            ? `Ranked for ${style} on ${date}. Availability, reviews, price and experience all count.`
-            : "Filter by style, place, or budget. Pick a date too and we will rank braiders for that day."}
-        </p>
+  const count = loading
+    ? ""
+    : `${results.length} ${results.length === 1 ? "braider" : "braiders"}${style ? ` for ${cap(style)}` : ""}`;
+  const hasMore = Boolean(date || campus || maxPrice);
 
-        <div className="panel stack" style={{ marginTop: "1.5rem" }}>
-          <div className="row">
-            <div>
-              <label htmlFor="f-style">Style</label>
-              <select id="f-style" value={style} onChange={(e) => set("style", e.target.value)}>
-                <option value="">Any style</option>
-                {styles.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="f-date">Date</label>
-              <input id="f-date" type="date" min={todayISO()} value={date} onChange={(e) => set("date", e.target.value)} />
-            </div>
-            <div>
-              <label htmlFor="f-area">Campus area</label>
-              <select id="f-area" value={campus} onChange={(e) => set("campus_area", e.target.value)}>
-                <option value="">Anywhere on campus</option>
-                {Object.entries(CAMPUS_AREAS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="f-price">Max price ($)</label>
-              <input
-                id="f-price"
-                type="number"
-                min={0}
-                placeholder="No limit"
-                value={maxPrice}
-                onChange={(e) => set("max_price", e.target.value)}
-              />
-            </div>
+  return (
+    <main className="wrap browse">
+      <h1>Find a braider</h1>
+      <p className="sub">
+        {style && date
+          ? `Ranked for ${cap(style)} on ${date}. Availability, reviews, price and experience all count.`
+          : "Choose a style to see who does it."}
+      </p>
+
+      <div className="chip-row filters" role="group" aria-label="Style">
+        <button type="button" className="chip" aria-pressed={!style} onClick={() => set("style", "")}>
+          All
+        </button>
+        {styles.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            className="chip"
+            aria-pressed={style === s.name}
+            onClick={() => set("style", s.name)}
+          >
+            {cap(s.name)}
+          </button>
+        ))}
+      </div>
+
+      <details className="more-filters" open={hasMore}>
+        <summary>Day, place and budget</summary>
+        <div className="row" style={{ marginTop: "0.9rem" }}>
+          <div>
+            <label htmlFor="f-date">Day</label>
+            <input id="f-date" type="date" min={todayISO()} value={date} onChange={(e) => set("date", e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="f-area">Campus area</label>
+            <select id="f-area" value={campus} onChange={(e) => set("campus_area", e.target.value)}>
+              <option value="">Anywhere on campus</option>
+              {Object.entries(CAMPUS_AREAS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="f-price">Max price ($)</label>
+            <input
+              id="f-price"
+              type="number"
+              min={0}
+              placeholder="No limit"
+              value={maxPrice}
+              onChange={(e) => set("max_price", e.target.value)}
+            />
           </div>
         </div>
+      </details>
 
-        {error && <p className="error" style={{ marginTop: "1rem" }}>{error}</p>}
-        {slow && loading && <div style={{ marginTop: "1rem" }}><WakingNotice /></div>}
-        {loading ? (
-          <div style={{ marginTop: "1.5rem" }}><RowsSkeleton /></div>
-        ) : results.length === 0 ? (
-          <p className="muted" style={{ marginTop: "1.5rem" }}>
-            Nobody matches that yet. Try a different style or budget, or{" "}
-            <a href="#/signup?role=braider">list your own chair</a>.
-          </p>
-        ) : (
-          <div className="rows" style={{ marginTop: "1.5rem" }}>
-            <h2 className="sr-only">Matching braiders</h2>
-            {results.map((b) => (
-              <BraiderRow key={b.id} braider={b} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      {error && <p className="error" style={{ marginTop: "1rem" }}>{error}</p>}
+      {slow && loading && <div style={{ marginTop: "1rem" }}><WakingNotice /></div>}
+      <p className="result-count" role="status">{count}</p>
+      <h2 className="sr-only">Matching braiders</h2>
+      {loading ? (
+        <div style={{ marginTop: 12 }}><RowsSkeleton /></div>
+      ) : results.length === 0 ? (
+        <div className="empty-card">
+          <strong>No one does this style yet.</strong>
+          <div>Send a custom request and braiders can offer a price.</div>
+          <Link className="btn" to="/browse">Make a custom request</Link>
+        </div>
+      ) : (
+        <div className="rows" style={{ marginTop: 12 }}>
+          {results.map((b) => (
+            <BraiderRow key={b.id} braider={b} style={style || undefined} />
+          ))}
+        </div>
+      )}
+    </main>
   );
 }

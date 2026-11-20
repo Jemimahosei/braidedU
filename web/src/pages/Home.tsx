@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, todayISO, type Braider, type BraidStyle } from "../lib/api";
-import { BraiderRow, PriceTag, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
+import { api, cap, formatPrice, todayISO, type Braider, type BraidStyle } from "../lib/api";
+import { BraiderRow, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
 
 export default function Home() {
   const [styles, setStyles] = useState<BraidStyle[]>([]);
@@ -52,11 +52,7 @@ export default function Home() {
       <section className="hero">
         <div className="wrap">
           <h1>Every braid, priced before you ask.</h1>
-          <p className="lede">
-            Student braiders on campus list their styles, prices and hours.
-            Pick a style and a day. The booking lives in one place, not in a
-            pile of DMs.
-          </p>
+          <p className="lede">Braiders on campus, their work, their prices.</p>
 
           <form className="searchbar" onSubmit={search}>
             <div>
@@ -65,123 +61,110 @@ export default function Home() {
                 <option value="">Any style</option>
                 {styles.map((s) => (
                   <option key={s.id} value={s.name}>
-                    {s.name}
+                    {cap(s.name)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="h-date">Day</label>
+              <label htmlFor="h-day">Day</label>
               <input
-                id="h-date"
+                id="h-day"
                 type="date"
                 min={todayISO()}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
-            <button className="btn btn-gold" type="submit">
+            <button className="btn" type="submit">
               Show braiders
             </button>
           </form>
 
-          <p className="shelf-note">Or start from what it costs. Lowest price listed for each style:</p>
+          <p className="shelf-note">Starting prices by style</p>
           {loading ? (
-            <div className="shelf" aria-hidden="true" style={{ minHeight: "92px" }} />
+            <div className="shelf" aria-hidden="true" style={{ minHeight: "46px" }} />
           ) : shelf.length === 0 ? (
             <div className="shelf">
               <span className="muted">No prices are listed yet.</span>
             </div>
           ) : (
             <div className="shelf">
-              {shelf.map(({ style: s, from }, i) => (
-                <PriceTag
-                  key={s.id}
-                  name={s.name}
-                  price={from}
-                  meta="and up"
-                  to={`/browse?style=${encodeURIComponent(s.name)}`}
-                  index={i}
-                  place
-                />
+              {shelf.map(({ style: s, from }) => (
+                <Link key={s.id} to={`/browse?style=${encodeURIComponent(s.name)}`} className="shelf-pill">
+                  <b>{cap(s.name)}</b>
+                  <span>{formatPrice(from)}</span>
+                </Link>
               ))}
             </div>
           )}
         </div>
       </section>
 
-      <section className="section" style={{ paddingTop: "1.5rem" }}>
-        <div className="wrap">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "end",
-              flexWrap: "wrap",
-              gap: "1rem",
-              marginBottom: "1.25rem",
-            }}
-          >
-            <h2>Braiders on campus</h2>
-            <Link to="/browse">See everyone</Link>
-          </div>
-          {slow && loading && <WakingNotice />}
-          {loading ? (
-            <RowsSkeleton />
-          ) : failed ? (
-            <div className="error" role="alert">
-              <p>Couldn't reach the server. Check your connection and try again.</p>
-              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: "0.6rem" }} onClick={load}>
-                Try again
-              </button>
-            </div>
-          ) : braiders.length === 0 ? (
-            <p className="muted">
-              No braiders are listed yet. <Link to="/signup?role=braider">List your chair</Link> to be the first.
-            </p>
-          ) : (
-            <div className="rows">
-              {braiders.slice(0, 3).map((b) => (
-                <BraiderRow key={b.id} braider={b} />
-              ))}
-            </div>
-          )}
+      <section className="wrap" style={{ paddingTop: 32, paddingBottom: 24 }}>
+        <div className="section-head">
+          <h2>Braiders on campus</h2>
+          <Link to="/browse">See everyone</Link>
         </div>
+        {slow && loading && <WakingNotice />}
+        {loading ? (
+          <RowsSkeleton />
+        ) : failed ? (
+          <div className="error" role="alert">
+            <p>Couldn't reach the server. Check your connection and try again.</p>
+            <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: "0.6rem" }} onClick={load}>
+              Try again
+            </button>
+          </div>
+        ) : braiders.length === 0 ? (
+          <p className="muted">
+            No braiders are listed yet. <Link to="/signup?role=braider">List your chair</Link> to be the first.
+          </p>
+        ) : (
+          <div className="rows">
+            {braiders.slice(0, 6).map((b) => (
+              <BraiderRow key={b.id} braider={b} />
+            ))}
+          </div>
+        )}
       </section>
 
-      <section className="section" style={{ paddingTop: 0 }}>
-        <div className="wrap">
-          <h2>How booking works</h2>
-          <div className="steps" style={{ marginTop: "1.5rem" }}>
-            <div className="step">
-              <span className="n">1</span>
-              <h3>Find your braider</h3>
-              <p>Browse by style, area and budget. Every listing shows the price and how long it takes.</p>
-            </div>
-            <div className="step">
-              <span className="n">2</span>
-              <h3>Request a day</h3>
-              <p>Pick a date and a start time. Your braider accepts or declines, and you both see the same booking.</p>
-            </div>
-            <div className="step">
-              <span className="n">3</span>
-              <h3>Show up, then review</h3>
-              <p>After your appointment, leave a review so the next person knows what to expect.</p>
-            </div>
+      <section className="wrap" style={{ paddingTop: 24, paddingBottom: 24 }}>
+        <h2 className="home-h2" style={{ marginBottom: 20 }}>
+          How booking works
+        </h2>
+        <div className="steps">
+          <div className="step">
+            <div className="n">1</div>
+            <h3>Pick a braider</h3>
+            <p>Browse by style, see prices and past work.</p>
+          </div>
+          <div className="step">
+            <div className="n">2</div>
+            <h3>Request a day</h3>
+            <p>They accept or decline. You both see the booking.</p>
+          </div>
+          <div className="step">
+            <div className="n">3</div>
+            <h3>Leave a review</h3>
+            <p>After your appointment, tell the next person.</p>
           </div>
         </div>
       </section>
 
-      <section className="cta-band">
-        <div className="wrap">
-          <div>
-            <h2>You braid? List your chair.</h2>
-            <p>
-              Put your styles and prices up, take requests on your own schedule,
-              and get found by the whole campus.
-            </p>
-          </div>
-          <Link to="/signup?role=braider" className="btn">
+      <section className="wrap" style={{ paddingTop: 24, paddingBottom: 16 }}>
+        <div className="band">
+          <h2>Something else in mind?</h2>
+          <Link to="/browse" className="btn">
+            Request a custom style
+          </Link>
+        </div>
+      </section>
+
+      <section className="wrap" style={{ paddingBottom: 32 }}>
+        <div className="band band-sand">
+          <h2>You braid? List your chair.</h2>
+          <Link to="/signup?role=braider" className="btn btn-ink">
             Sign up as a braider
           </Link>
         </div>

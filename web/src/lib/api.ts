@@ -413,6 +413,14 @@ export const WEEKDAYS: Record<string, string> = {
   sun: "Sun",
 };
 
+/** Sentence case for a style name: "box braids" becomes "Box braids". */
+export function cap(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/** Soft background tints from the mockup, used behind photos and when there is no photo. */
+export const TINTS = ["#d9e3dc", "#e8dfd0", "#dcd9ea", "#e6d9d4", "#d4e0e3", "#e3e3d1"];
+
 export function campusLabel(area: string): string {
   return CAMPUS_AREAS[area] || area;
 }

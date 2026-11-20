@@ -14,14 +14,21 @@ import {
   type BraidStyle,
   type Listing,
 } from "../lib/api";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { StatusPill, Stars, Avatar } from "../components/ui";
 import { PhotoField } from "../components/PhotoField";
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export default function BraiderDashboard() {
-  const [tab, setTab] = useState<"requests" | "schedule" | "reviews" | "listings" | "profile">("requests");
+  const [params] = useSearchParams();
+  const wanted = params.get("tab");
+  const [tab, setTab] = useState<"requests" | "schedule" | "reviews" | "listings" | "profile">(
+    wanted === "listings" || wanted === "profile" || wanted === "schedule" || wanted === "reviews" ? wanted : "requests",
+  );
+  useEffect(() => {
+    setTab(wanted === "listings" || wanted === "profile" || wanted === "schedule" || wanted === "reviews" ? wanted : "requests");
+  }, [wanted]);
   const [profile, setProfile] = useState<Braider | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
