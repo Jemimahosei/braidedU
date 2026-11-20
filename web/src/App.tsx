@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./lib/api";
-import { HashRouter, Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { HashRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { Mark } from "./components/ui";
 import Home from "./pages/Home";
@@ -17,6 +17,18 @@ function DashboardRoute() {
   return user.role === "braider" ? <BraiderDashboard /> : <ClientDashboard />;
 }
 
+/** A braider nav link to one dashboard tab; current only when that tab is showing. */
+function DashLink({ tab, children }: { tab: string; children: React.ReactNode }) {
+  const { pathname, search } = useLocation();
+  const current = new URLSearchParams(search).get("tab") || "requests";
+  const on = pathname === "/dashboard" && current === tab;
+  return (
+    <Link to={tab === "requests" ? "/dashboard" : `/dashboard?tab=${tab}`} aria-current={on ? "page" : undefined}>
+      {children}
+    </Link>
+  );
+}
+
 function Header() {
   const { user, signOut } = useAuth();
   const [unread, setUnread] = useState(0);
@@ -28,6 +40,7 @@ function Header() {
     return () => window.clearInterval(t);
   }, [user]);
   const navigate = useNavigate();
+  const braider = user?.role === "braider";
   return (
     <header className="site-header">
       <div className="wrap">
@@ -36,17 +49,27 @@ function Header() {
           braidedU
         </Link>
         <nav className="nav">
-          <Link to="/browse">Find a braider</Link>
+          {braider ? (
+            <>
+              <DashLink tab="requests">Requests</DashLink>
+              <NavLink to="/messages">Messages{unread > 0 ? ` (${unread})` : ""}</NavLink>
+              <DashLink tab="listings">Postings</DashLink>
+              <DashLink tab="profile">Availability</DashLink>
+              {user?.profile_id && <NavLink to={`/braiders/${user.profile_id}`}>My page</NavLink>}
+            </>
+          ) : (
+            <>
+              <NavLink to="/browse">Find a braider</NavLink>
+              <NavLink to="/messages">Messages{user && unread > 0 ? ` (${unread})` : ""}</NavLink>
+              <NavLink to="/dashboard">My bookings</NavLink>
+            </>
+          )}
           {user ? (
             <>
-              <Link to="/messages">Messages{unread > 0 ? ` (${unread})` : ""}</Link>
-              <Link to="/dashboard">{user.role === "braider" ? "My chair" : "My bookings"}</Link>
-              <span className="who">
-                {user.username} ({user.role})
-              </span>
+              <span className="who">{user.username}</span>
               <button
                 type="button"
-                className="btn btn-light btn-sm"
+                className="nav-link"
                 onClick={() => {
                   signOut();
                   navigate("/");
@@ -57,9 +80,8 @@ function Header() {
             </>
           ) : (
             <>
-              <Link to="/signup?role=braider">List your chair</Link>
-              <Link to="/login">Log in</Link>
-              <Link to="/signup" className="btn btn-sm">
+              <NavLink to="/login">Log in</NavLink>
+              <Link to="/signup" className="btn">
                 Sign up
               </Link>
             </>
@@ -92,16 +114,7 @@ export default function App() {
           </Routes>
         </main>
         <footer className="site-footer">
-          <div className="wrap">
-            <p>
-              <strong>braidedU</strong> is a campus marketplace for braiding
-              services, built by a Cornell student for Black women on campus.
-            </p>
-            <p>
-              A free community project. Every profile is a real braider who
-              chose to be here.
-            </p>
-          </div>
+          <div className="wrap">A Cornell student project</div>
         </footer>
       </HashRouter>
     </AuthProvider>

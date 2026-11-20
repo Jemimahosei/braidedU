@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   campusLabel,
+  cap,
+  TINTS,
   formatDuration,
   formatPrice,
   initials,
@@ -172,57 +174,56 @@ export function PriceTag({
   );
 }
 
-export function BraiderRow({ braider }: { braider: Braider }) {
+/** A braider card, as in the mockup: photo, name and rating, area or price line, style chips. */
+export function BraiderRow({
+  braider,
+  style,
+}: {
+  braider: Braider;
+  /** The style being browsed, if any: shows "Style from $X" and highlights its chip. */
+  style?: string;
+}) {
   const active = braider.listings.filter((l) => l.is_active);
+  const names = Array.from(new Set(active.map((l) => l.style_name)));
+  const picked = style ? active.filter((l) => l.style_name === style) : [];
+  const from = picked.length ? Math.min(...picked.map((l) => Number(l.price))) : null;
   const where = braider.campus_area ? campusLabel(braider.campus_area) : "On campus";
-  const shown = active.slice(0, 3);
+  const line =
+    style && from !== null
+      ? `${cap(style)} from ${formatPrice(from)}`
+      : `${where}${braider.match_score !== undefined ? `, match ${braider.match_score}/100` : ""}`;
+  const rating =
+    braider.average_rating !== null && braider.average_rating !== undefined
+      ? `★ ${braider.average_rating.toFixed(1)}${braider.review_count > 0 ? ` (${braider.review_count})` : ""}`
+      : "New";
   return (
-    <article className="braider-card">
-      <Link to={`/braiders/${braider.id}`} className="photo-frame" aria-label={`${braider.display_name}'s profile`}>
+    <Link to={`/braiders/${braider.id}`} className="braider-card">
+      <div className="photo-frame" style={{ background: TINTS[braider.id % TINTS.length] }}>
         {braider.photo_url ? (
-          <img src={sized(braider.photo_url, 700)} alt="" loading="lazy" />
+          <img src={sized(braider.photo_url, 700)} alt={braider.display_name} loading="lazy" />
         ) : (
-          <span className="photo-empty" aria-hidden="true">
-            {initials(braider.display_name)}
-          </span>
+          <span className="photo-none">No photo yet</span>
         )}
-      </Link>
+      </div>
       <div className="body">
-        <h3>
-          <Link to={`/braiders/${braider.id}`}>{braider.display_name}</Link>
-        </h3>
-        <div className="where">
-          {where}
-          {braider.years_experience > 0 && `, ${braider.years_experience} yrs braiding`}
-          {braider.match_score !== undefined && `, match ${braider.match_score}/100`}
+        <div className="name-row">
+          <h3>{braider.display_name}</h3>
+          <span className="rating">{rating}</span>
         </div>
-        <div>
-          <Stars rating={braider.average_rating} />
-          {braider.review_count > 0 && <span className="muted"> ({braider.review_count})</span>}
-        </div>
+        <div className="where">{line}</div>
         <div className="labels">
-          {shown.length === 0 ? (
-            <span className="tag tag-quiet">
-              <span className="t-name">No prices listed yet</span>
-            </span>
+          {names.length === 0 ? (
+            <span className="style-chip">No prices listed yet</span>
           ) : (
-            shown.map((l) => (
-              <PriceTag
-                key={l.id}
-                name={l.style_name}
-                price={l.price}
-                meta={formatDuration(l.duration_minutes)}
-              />
+            names.map((n) => (
+              <span key={n} className={`style-chip${style && n === style ? " on" : ""}`}>
+                {cap(n)}
+              </span>
             ))
-          )}
-          {active.length > shown.length && (
-            <span className="muted" style={{ alignSelf: "center" }}>
-              +{active.length - shown.length} more
-            </span>
           )}
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 
