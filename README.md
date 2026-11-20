@@ -16,7 +16,7 @@ reputation through reviews. No more chasing DMs.
 | --- | --- | --- |
 | `/` | Home: find-a-braider search, styles with lowest prices, featured braiders, how booking works | Everyone |
 | `/browse` | Filter braiders by style, date, campus area and budget; ranked when a style and date are chosen | Everyone |
-| `/braiders/:id` | Braider profile: bio, hours, priced listings, reviews, booking form | Everyone (booking needs a client account) |
+| `/braiders/:id` | Braider profile: bio, hours, where she braids, her rules, priced listings, reviews, booking form with open times only | Everyone (booking needs a client account) |
 | `/signup`, `/login` | Create an account with a Cornell email (client or braider), log in | Everyone |
 | `/confirm?token=`, `/forgot`, `/reset?token=` | Email confirmation, forgot password, choose a new password | Everyone |
 | `/dashboard` | Client: upcoming and past appointments, cancel, review. Braider: requests, schedule, listings, profile | Signed in |
@@ -80,7 +80,9 @@ Base: `/api/`. Auth: `Authorization: Token <key>`.
 - `GET /api/listings/?style=&braider=&max_price=&campus_area=` — public
 - `POST /api/listings/` — braider only
 - `GET /api/my-listings/` · `PATCH /api/listings/<id>/` — braider's own
-- `GET /api/braiders/me/` · `PATCH /api/braiders/me/` — braider profile
+- `GET /api/braiders/me/` · `PATCH /api/braiders/me/` — braider profile, including `service_places` (`my_place|client_place|campus_space`), `private_address` (only ever returned to her), `cancel_window_hours`, `deposit_note`, `policy_text`, `reminders_enabled`, `buffer_minutes`
+- `GET /api/braiders/<id>/slots/?listing=&date=` — public; start times still open that day
+- `GET|POST /api/braiders/me/time-off/` `{start_date, end_date, note}` · `DELETE /api/braiders/me/time-off/<id>/`
 - `GET /api/clients/me/` · `PATCH /api/clients/me/` — client profile
 - `GET /api/bookings/?status=` · `POST /api/bookings/` `{listing, date, start_time, notes}`
 - `POST /api/bookings/<id>/accept|decline|complete/` — braider; `cancel/` — client
@@ -90,8 +92,9 @@ Base: `/api/`. Auth: `Authorization: Token <key>`.
 - `POST /api/photos/` multipart `{image, kind: profile|work|review|message|reference}` → `{id, url, thumb_url, large_url}` — signed in; JPG/PNG/WebP/GIF up to 10 MB
 - `DELETE /api/photos/<id>/` — owner only; removes the file from storage too
 
-Booking rules: date cannot be in the past; a braider cannot be double-booked
-(accepted bookings block overlapping times); reviews only after completion,
+Booking rules: a request must start at one of the open times from `/slots/` (inside
+her hours, a day she works, not on time off, not in the past, long enough for the
+style, and clear of accepted bookings plus her rest time); reviews only after completion,
 one per booking.
 
 ## Environment variables
@@ -132,5 +135,5 @@ styles (one column, scrolling nav, large tap targets).
 
 ```bash
 cd backend
-.venv/bin/python manage.py test marketplace   # 32 tests
+.venv/bin/python manage.py test marketplace   # 38 tests
 ```

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import {
   api,
   CAMPUS_AREAS,
+  SERVICE_PLACES,
+  formatDate as fmtDate,
+  type TimeOff,
   formatDate,
   formatPrice,
   formatTime,
@@ -30,11 +33,16 @@ export default function BraiderDashboard() {
   const [newPrice, setNewPrice] = useState("");
   const [newDuration, setNewDuration] = useState("180");
   const [newDesc, setNewDesc] = useState("");
+  const [timeOff, setTimeOff] = useState<TimeOff[]>([]);
+  const [offFrom, setOffFrom] = useState("");
+  const [offTo, setOffTo] = useState("");
+  const [offNote, setOffNote] = useState("");
   const [newPhoto, setNewPhoto] = useState<string[]>([]);
 
   const load = () => {
     api.myBraiderProfile().then(setProfile).catch(() => setProfile(null));
     api.bookings().then(setBookings).catch(() => setBookings([]));
+    api.timeOff().then(setTimeOff).catch(() => setTimeOff([]));
     api.myListings().then(setListings).catch(() => setListings([]));
     api.styles().then(setStyles).catch(() => setStyles([]));
   };
@@ -101,6 +109,13 @@ export default function BraiderDashboard() {
         location_detail: profile.location_detail,
         instagram: profile.instagram,
         photo_url: profile.photo_url,
+        service_places: profile.service_places,
+        private_address: profile.private_address ?? "",
+        cancel_window_hours: profile.cancel_window_hours,
+        deposit_note: profile.deposit_note,
+        policy_text: profile.policy_text,
+        reminders_enabled: profile.reminders_enabled,
+        buffer_minutes: profile.buffer_minutes,
         years_experience: profile.years_experience,
         available_days: profile.available_days,
         available_start_time: profile.available_start_time,
@@ -354,10 +369,101 @@ export default function BraiderDashboard() {
                 <input id="pf-end" type="time" value={profile.available_end_time?.slice(0, 5) || ""} onChange={(e) => setProfile({ ...profile, available_end_time: e.target.value || null })} />
               </div>
             </div>
+            <hr className="hr" />
+            <div>
+              <label>Where you braid</label>
+              <div className="chip-row">
+                {Object.entries(SERVICE_PLACES).map(([k, v]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className="chip"
+                    aria-pressed={profile.service_places.includes(k)}
+                    onClick={() =>
+                      setProfile({
+                        ...profile,
+                        service_places: profile.service_places.includes(k)
+                          ? profile.service_places.filter((x) => x !== k)
+                          : [...profile.service_places, k],
+                      })
+                    }
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {profile.service_places.includes("my_place") && (
+              <div>
+                <label htmlFor="pf-addr">Your address (private)</label>
+                <input id="pf-addr" value={profile.private_address ?? ""} onChange={(e) => setProfile({ ...profile, private_address: e.target.value })} placeholder="Street, apartment" />
+                <p className="muted" style={{ marginTop: "0.3rem" }}>
+                  Never shown on your page. A client sees it only after you accept their booking.
+                </p>
+              </div>
+            )}
+            <div className="row">
+              <div>
+                <label htmlFor="pf-cancel">Free cancellation until (hours before)</label>
+                <input id="pf-cancel" type="number" min={0} max={336} value={profile.cancel_window_hours} onChange={(e) => setProfile({ ...profile, cancel_window_hours: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label htmlFor="pf-buffer">Rest time between clients (minutes)</label>
+                <input id="pf-buffer" type="number" min={0} max={120} step={5} value={profile.buffer_minutes} onChange={(e) => setProfile({ ...profile, buffer_minutes: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="pf-dep">Deposit (optional)</label>
+              <input id="pf-dep" value={profile.deposit_note} onChange={(e) => setProfile({ ...profile, deposit_note: e.target.value })} placeholder="e.g. $20 to hold the spot" />
+            </div>
+            <div>
+              <label htmlFor="pf-pol">Your rules (optional)</label>
+              <textarea id="pf-pol" rows={3} value={profile.policy_text} onChange={(e) => setProfile({ ...profile, policy_text: e.target.value })} placeholder="Late arrivals, hair prep, what to bring" />
+            </div>
+            <button type="button" className="toggle" aria-pressed={profile.reminders_enabled} onClick={() => setProfile({ ...profile, reminders_enabled: !profile.reminders_enabled })}>
+              <i /> Email my clients a reminder the day before
+            </button>
             <button className="btn" type="submit">
               Save profile
             </button>
           </form>
+        )}
+
+        {tab === "profile" && profile && (
+          <div className="panel stack" style={{ marginTop: "1.25rem" }}>
+            <h2>Time off</h2>
+            <p className="muted">No one can request those days.</p>
+            {timeOff.map((t) => (
+              <div key={t.id} style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center" }}>
+                <span>
+                  {fmtDate(t.start_date)}
+                  {t.end_date !== t.start_date && <> to {fmtDate(t.end_date)}</>}
+                  {t.note && <span className="muted">, {t.note}</span>}
+                </span>
+                <button className="link-btn danger" type="button" onClick={async () => { await api.removeTimeOff(t.id); load(); }}>
+                  Remove
+                </button>
+              </div>
+            ))}
+            <form
+              className="row"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await api.addTimeOff({ start_date: offFrom, end_date: offTo || offFrom, note: offNote });
+                  setOffFrom(""); setOffTo(""); setOffNote("");
+                  load();
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Could not add time off.");
+                }
+              }}
+            >
+              <div><label htmlFor="to-from">From</label><input id="to-from" type="date" required value={offFrom} onChange={(e) => setOffFrom(e.target.value)} /></div>
+              <div><label htmlFor="to-to">To (optional)</label><input id="to-to" type="date" value={offTo} onChange={(e) => setOffTo(e.target.value)} /></div>
+              <div><label htmlFor="to-note">Note</label><input id="to-note" value={offNote} onChange={(e) => setOffNote(e.target.value)} placeholder="Finals, travel" /></div>
+              <div style={{ alignSelf: "end" }}><button className="btn btn-ghost" type="submit">Add time off</button></div>
+            </form>
+          </div>
         )}
       </div>
     </div>
