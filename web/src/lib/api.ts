@@ -94,6 +94,13 @@ export function sized(url: string, width: number): string {
   return url.replace("/upload/", `/upload/f_auto,q_auto,w_${width},c_limit/`);
 }
 
+export interface Session {
+  token: string;
+  username: string;
+  role: AuthUser["role"];
+  profile_id: number | null;
+}
+
 export interface AuthUser {
   username: string;
   role: "braider" | "client" | null;
@@ -228,15 +235,29 @@ export const api = {
   deletePhoto: (id: number) => request<void>(`/photos/${id}/`, { method: "DELETE" }),
   braiderReviews: (id: number) => request<Review[]>(`/braiders/${id}/reviews/`),
   login: (username: string, password: string) =>
-    request<{ token: string; username: string; role: AuthUser["role"]; profile_id: number }>(
-      "/auth/login/",
-      { method: "POST", body: JSON.stringify({ username, password }) },
-    ),
-  register: (username: string, password: string, role: "braider" | "client", display_name: string) =>
-    request<{ token: string; username: string; role: AuthUser["role"]; profile_id: number }>(
-      "/auth/register/",
-      { method: "POST", body: JSON.stringify({ username, password, role, display_name }) },
-    ),
+    request<Session>("/auth/login/", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+  register: (email: string, password: string, role: "braider" | "client", display_name: string) =>
+    request<{ detail: string; email: string }>("/auth/register/", {
+      method: "POST",
+      body: JSON.stringify({ email, password, role, display_name }),
+    }),
+  confirmEmail: (token: string) =>
+    request<Session>("/auth/confirm/", { method: "POST", body: JSON.stringify({ token }) }),
+  resendConfirmation: (email: string) =>
+    request<{ detail: string }>("/auth/resend/", { method: "POST", body: JSON.stringify({ email }) }),
+  forgotPassword: (email: string) =>
+    request<{ detail: string }>("/auth/password-reset/", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    request<Session>("/auth/password-reset/confirm/", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    }),
 };
 
 export const CAMPUS_AREAS: Record<string, string> = {

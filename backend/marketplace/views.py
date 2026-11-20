@@ -16,7 +16,9 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
-from . import matching
+from django.contrib.auth.models import User
+
+from . import emails, matching
 from .models import (
     Booking,
     BraiderProfile,
@@ -50,35 +52,100 @@ def _role_and_profile(user):
 # ---------------------------------------------------------------- auth
 
 
+def _session(user):
+    token, _ = Token.objects.get_or_create(user=user)
+    role, profile = _role_and_profile(user)
+    return {
+        "token": token.key,
+        "username": user.username,
+        "role": role,
+        "profile_id": profile.id if profile else None,
+    }
+
+
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def register(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
-    token, _ = Token.objects.get_or_create(user=user)
-    role, profile = _role_and_profile(user)
+    emails.send_confirmation(user)
     return Response(
-        {"token": token.key, "username": user.username, "role": role, "profile_id": profile.id},
+        {"detail": "Check your Cornell email for a confirmation link.", "email": user.email},
         status=status.HTTP_201_CREATED,
     )
 
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
-def login(request):
-    from django.contrib.auth import authenticate
-
-    user = authenticate(
-        username=request.data.get("username"), password=request.data.get("password")
-    )
+def confirm_email(request):
+    user = emails.read_token(request.data.get("token", ""), "confirm", emails.CONFIRM_MAX_AGE)
     if user is None:
-        return Response({"detail": "Invalid username or password."}, status=status.HTTP_400_BAD_REQUEST)
-    token, _ = Token.objects.get_or_create(user=user)
-    role, profile = _role_and_profile(user)
-    return Response(
-        {"token": token.key, "username": user.username, "role": role, "profile_id": profile.id if profile else None}
-    )
+        return Response(
+            {"detail": "That link is not valid any more. Ask for a new one."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not user.is_active:
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+    return Response(_session(user))
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def resend_confirmation(request):
+    email = str(request.data.get("email", "")).strip().lower()
+    user = User.objects.filter(username=email, is_active=False).first()
+    if user:
+        emails.send_confirmation(user)
+    # Same answer either way so this can't be used to find who has an account.
+    return Response({"detail": "If that account is waiting for confirmation, we sent a new link."})
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def password_reset(request):
+    email = str(request.data.get("email", "")).strip().lower()
+    user = User.objects.filter(username=email, is_active=True).first()
+    if user:
+        emails.send_reset(user)
+    return Response({"detail": "If that email has an account, we sent a reset link."})
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def password_reset_confirm(request):
+    user = emails.read_token(request.data.get("token", ""), "reset", emails.RESET_MAX_AGE)
+    password = str(request.data.get("password", ""))
+    if user is None:
+        return Response(
+            {"detail": "That link is not valid any more. Ask for a new one."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(password) < 8:
+        return Response(
+            {"detail": "Use a password of at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    user.set_password(password)
+    user.save(update_fields=["password"])
+    Token.objects.filter(user=user).delete()  # sign out everywhere else
+    return Response(_session(user))
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def login(request):
+    email = str(request.data.get("username") or request.data.get("email") or "").strip().lower()
+    password = request.data.get("password") or ""
+    user = User.objects.filter(username=email).first()
+    if user is None or not user.check_password(password):
+        return Response({"detail": "Wrong email or password."}, status=status.HTTP_400_BAD_REQUEST)
+    if not user.is_active:
+        return Response(
+            {"detail": "Confirm your email first. Check your inbox, or ask for a new link."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return Response(_session(user))
 
 
 @api_view(["GET"])

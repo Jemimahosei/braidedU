@@ -8,6 +8,7 @@ from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APITestCase
 
+from marketplace.tests.helpers import sign_up
 from marketplace.models import Booking, BraidStyle
 
 
@@ -23,8 +24,7 @@ class PhotoLinkTests(APITestCase):
         self.style = BraidStyle.objects.create(name="box braids")
 
     def register(self, name, role):
-        r = self.client.post("/api/auth/register/", {"username": name, "password": "pw-1234", "role": role}, format="json")
-        self.client.credentials(HTTP_AUTHORIZATION="Token " + r.data["token"])
+        sign_up(self.client, name, role)
 
     def upload(self, kind):
         r = self.client.post("/api/photos/", {"image": jpeg(), "kind": kind}, format="multipart")

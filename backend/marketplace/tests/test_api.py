@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from marketplace.models import Booking, BraidStyle
+from marketplace.tests.helpers import sign_up
 
 
 class ApiFlowTests(APITestCase):
@@ -15,14 +16,7 @@ class ApiFlowTests(APITestCase):
         self.other_style = BraidStyle.objects.create(name="cornrows")
 
     def _auth(self, username, role):
-        response = self.client.post(
-            "/api/auth/register/",
-            {"username": username, "password": "demo1234", "role": role},
-            format="json",
-        )
-        self.assertEqual(response.status_code, 201, response.content)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
-        return response.data
+        return sign_up(self.client, username, role)
 
     def _next_saturday(self):
         today = timezone.localdate()
@@ -70,7 +64,7 @@ class ApiFlowTests(APITestCase):
         # Braider accepts, then completes.
         from rest_framework.authtoken.models import Token
 
-        token = Token.objects.get(user__username="braider1")
+        token = Token.objects.get(user__username="braider1@cornell.edu")
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         response = self.client.post(f"/api/bookings/{booking_id}/accept/")
         self.assertEqual(response.status_code, 200, response.content)
@@ -80,7 +74,7 @@ class ApiFlowTests(APITestCase):
         self.assertEqual(response.data["status"], "completed")
 
         # Client reviews the completed booking.
-        token = Token.objects.get(user__username="client1")
+        token = Token.objects.get(user__username="client1@cornell.edu")
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         response = self.client.post(
             f"/api/bookings/{booking_id}/review/",
@@ -161,10 +155,10 @@ class ApiFlowTests(APITestCase):
         # Accept it, then a second overlapping request must fail.
         from rest_framework.authtoken.models import Token
 
-        token = Token.objects.get(user__username="braider4")
+        token = Token.objects.get(user__username="braider4@cornell.edu")
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         self.client.post(f"/api/bookings/{booking_id}/accept/")
-        token = Token.objects.get(user__username="client4")
+        token = Token.objects.get(user__username="client4@cornell.edu")
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
         response = self.client.post(
             "/api/bookings/",
