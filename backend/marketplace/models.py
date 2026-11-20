@@ -169,3 +169,32 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.rating}/5 for {self.braider} by {self.client}"
+
+
+PHOTO_KIND_CHOICES = [
+    ("profile", "Profile photo"),
+    ("work", "Style photo"),
+    ("review", "Review photo"),
+    ("message", "Message photo"),
+    ("reference", "Custom request reference"),
+]
+
+
+class Photo(models.Model):
+    """An uploaded image. Only the link is stored here; the file itself
+    lives in Cloudinary (or local disk in development)."""
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="photos")
+    kind = models.CharField(max_length=12, choices=PHOTO_KIND_CHOICES, default="work")
+    url = models.URLField(max_length=500)
+    # Cloudinary public id, or the local file name; used to delete the file.
+    storage_key = models.CharField(max_length=300, blank=True)
+    width = models.PositiveIntegerField(default=0)
+    height = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.kind} photo by {self.owner}"
