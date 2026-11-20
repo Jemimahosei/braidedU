@@ -121,6 +121,7 @@ export default function Browse() {
           </p>
         ) : (
           <div className="rows" style={{ marginTop: "1.5rem" }}>
+            <h2 className="sr-only">Matching braiders</h2>
             {results.map((b) => (
               <BraiderRow key={b.id} braider={b} />
             ))}
