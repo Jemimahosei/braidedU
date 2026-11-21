@@ -52,7 +52,13 @@ def send_email(to, subject, text):
     req = urllib.request.Request(
         "https://api.resend.com/emails",
         data=body,
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            # Resend sits behind Cloudflare, which refuses Python's default
+            # User-Agent with error 1010.
+            "User-Agent": "braidedU/1.0 (+https://braidedu-frontend.onrender.com)",
+        },
         method="POST",
     )
     try:
