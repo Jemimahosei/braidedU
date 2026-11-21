@@ -373,7 +373,7 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
   register: (email: string, password: string, role: "braider" | "client", display_name: string) =>
-    request<{ detail: string; email: string }>("/auth/register/", {
+    request<{ detail: string; email: string; email_sent: boolean; email_mode: string }>("/auth/register/", {
       method: "POST",
       body: JSON.stringify({ email, password, role, display_name }),
     }),

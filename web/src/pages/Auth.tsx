@@ -115,6 +115,7 @@ export function Signup() {
   const role: "braider" | "client" = params.get("role") === "braider" ? "braider" : "client";
   const [error, setError] = useState("");
   const [sentTo, setSentTo] = useState("");
+  const [emailSent, setEmailSent] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -123,6 +124,7 @@ export function Signup() {
     setBusy(true);
     try {
       const res = await api.register(email.trim().toLowerCase(), password, role, displayName.trim());
+      setEmailSent(res.email_sent);
       setSentTo(res.email);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Sign-up failed.");
@@ -136,8 +138,9 @@ export function Signup() {
       <AuthCard>
         <h1>Check your inbox</h1>
         <p className="auth-lede">
-          We sent a confirmation link to {sentTo}. Open it to finish signing up. It can take a minute, and it may land in
-          spam.
+          {emailSent
+            ? `We sent a confirmation link to ${sentTo}. Open it to finish signing up. It can take a minute, and it may land in spam.`
+            : `Your account is created, but we couldn't send the confirmation email to ${sentTo}. Email sending isn't fully set up on this site yet, so please tell the site owner.`}
         </p>
         <Link to="/login" className="btn btn-ghost auth-back">
           Back to log in

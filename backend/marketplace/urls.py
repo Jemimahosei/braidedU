@@ -3,6 +3,7 @@ from django.urls import path
 from . import views, views_social
 
 urlpatterns = [
+    path("health/", views.health, name="health"),
     path("auth/register/", views.register, name="register"),
     path("auth/confirm/", views.confirm_email, name="confirm-email"),
     path("auth/resend/", views.resend_confirmation, name="resend-confirmation"),
