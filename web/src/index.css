@@ -490,6 +490,10 @@ a.tag:active {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Tall portrait selfies put the face near the top; the default center
+     crop cut faces off (only ~35% of a tall photo shows in this 4:3
+     frame). Bias the crop toward the top so faces stay in frame. */
+  object-position: center 10%;
 }
 .photo-none {
   position: absolute;
