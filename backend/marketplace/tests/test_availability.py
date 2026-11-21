@@ -67,6 +67,26 @@ class AvailabilityTests(APITestCase):
         self.assertNotIn("12:00", s)
         self.assertEqual(s[0], "12:30")
 
+    def test_listing_days_limit_its_slots(self):
+        from rest_framework.authtoken.models import Token
+
+        token = Token.objects.get(user__username="erica@cornell.edu")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        day_key = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"][self.day.weekday()]
+        other = "sun" if day_key != "sun" else "mon"
+        r = self.client.patch(f"/api/listings/{self.listing}/", {"available_days": [other]}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(self.slots(), [])
+        r = self.client.patch(f"/api/listings/{self.listing}/", {"available_days": [day_key]}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(self.slots())
+        # Back to following her own days, and bad values are rejected.
+        r = self.client.patch(f"/api/listings/{self.listing}/", {"available_days": []}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(self.slots())
+        r = self.client.patch(f"/api/listings/{self.listing}/", {"available_days": ["funday"]}, format="json")
+        self.assertEqual(r.status_code, 400)
+
     def test_cannot_book_a_closed_time(self):
         sign_up(self.client, "maya", "client")
         r = self.client.post("/api/bookings/", {"listing": self.listing, "date": str(self.day), "start_time": "07:00"}, format="json")

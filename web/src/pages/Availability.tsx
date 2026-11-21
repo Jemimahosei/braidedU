@@ -39,6 +39,16 @@ const CANCEL: [number, string][] = [
   [72, "72 hours before"],
 ];
 
+/** Deposit amounts, stored as "$25 up front" in the deposit note. */
+const DEPOSITS: [string, string][] = [
+  ["", "No deposit"],
+  ["$10 up front", "$10 up front"],
+  ["$20 up front", "$20 up front"],
+  ["$25 up front", "$25 up front"],
+  ["$30 up front", "$30 up front"],
+  ["$50 up front", "$50 up front"],
+];
+
 /** Braider availability and rules (mockup: Availability.dc.html). */
 export default function Availability() {
   const [p, setP] = useState<Braider | null>(null);
@@ -125,13 +135,11 @@ export default function Availability() {
             </button>
           ))}
         </div>
-        {p.service_places.includes("my_place") && (
-          <div className="field" style={{ marginTop: 16 }}>
-            <label htmlFor="a-addr">Address</label>
-            <input id="a-addr" value={p.private_address ?? ""} onChange={(e) => set({ private_address: e.target.value })} placeholder="Street, building or room" />
-            <span className="hint">Clients only see this after you accept their request.</span>
-          </div>
-        )}
+        <div className="field" style={{ marginTop: 16 }}>
+          <label htmlFor="a-addr">Address</label>
+          <input id="a-addr" value={p.private_address ?? ""} onChange={(e) => set({ private_address: e.target.value })} placeholder="Street, building or room" />
+          <span className="hint">Clients only see this after you accept their request.</span>
+        </div>
       </section>
 
       <section className="join-card">
@@ -173,7 +181,7 @@ export default function Availability() {
           </select>
         </div>
         <p className="form-note" style={{ marginTop: 12 }}>
-          Same hours on every day you take clients. Clients only see times that fit the whole style. A 6 hour install can't be booked in the middle of another one.
+          Clients only see times that fit the whole style. A 6 hour install can't be booked in the middle of another one.
         </p>
       </section>
 
@@ -215,14 +223,24 @@ export default function Availability() {
           </div>
           <div className="field" style={{ flex: "1 1 220px" }}>
             <label htmlFor="a-dep">Deposit</label>
-            <input id="a-dep" value={p.deposit_note} onChange={(e) => set({ deposit_note: e.target.value })} placeholder="None, or e.g. $20 up front" />
+            <select id="a-dep" value={p.deposit_note} onChange={(e) => set({ deposit_note: e.target.value })}>
+              {DEPOSITS.map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+              {!DEPOSITS.some(([v]) => v === p.deposit_note) && p.deposit_note && (
+                <option value={p.deposit_note}>{p.deposit_note}</option>
+              )}
+            </select>
           </div>
         </div>
         <div className="field" style={{ marginTop: 14 }}>
           <label htmlFor="a-pol">Shown to clients</label>
           <textarea id="a-pol" rows={2} value={p.policy_text} onChange={(e) => set({ policy_text: e.target.value })} placeholder="Late over 15 minutes? Tell me ahead or the deposit is kept." />
         </div>
-        <button type="button" className="switch" style={{ marginTop: 16 }} aria-pressed={p.reminders_enabled} onClick={() => set({ reminders_enabled: !p.reminders_enabled })}>
+      </section>
+
+      <section className="join-card">
+        <button type="button" className="switch" aria-pressed={p.reminders_enabled} onClick={() => set({ reminders_enabled: !p.reminders_enabled })}>
           <i />
           <span>Email you and the client the day before</span>
         </button>

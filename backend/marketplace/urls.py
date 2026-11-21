@@ -11,6 +11,7 @@ urlpatterns = [
     path("auth/password-reset/confirm/", views.password_reset_confirm, name="password-reset-confirm"),
     path("auth/login/", views.login, name="login"),
     path("auth/me/", views.me, name="me"),
+    path("auth/become-braider/", views.become_braider, name="become-braider"),
     path("styles/", views.BraidStyleListView.as_view(), name="style-list"),
     path("braiders/", views.BraiderListView.as_view(), name="braider-list"),
     path("braiders/<int:pk>/", views.BraiderDetailView.as_view(), name="braider-detail"),

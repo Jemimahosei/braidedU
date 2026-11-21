@@ -83,6 +83,9 @@ class ApiFlowTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 201, response.content)
+        # The review carries its style and its author, for the profile page.
+        self.assertEqual(response.data["style_name"], "knotless braids")
+        self.assertEqual(response.data["client_user_id"], User.objects.get(username="client1@cornell.edu").id)
         # Second review for the same booking is rejected.
         response = self.client.post(
             f"/api/bookings/{booking_id}/review/", {"rating": 4},

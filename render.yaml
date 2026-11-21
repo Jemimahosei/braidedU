@@ -15,13 +15,12 @@ services:
         value: "*"
       - key: DJANGO_CORS_ALLOW_ALL
         value: "1"
-      # Postgres from the free database below, so accounts survive redeploys.
-      # (Render's free Postgres expires after 30 days: move to Neon or a paid
-      # plan before then and set DATABASE_URL by hand.)
+      # Postgres lives on Neon (free): DATABASE_URL is set by hand in the
+      # Render dashboard, not from a Render database — Render allows only
+      # one free Postgres per workspace and soup-db holds that slot.
+      # Keep sync:false so a Blueprint sync never overwrites the Neon URL.
       - key: DATABASE_URL
-        fromDatabase:
-          name: braidedu-db
-          property: connectionString
+        sync: false
       - key: FRONTEND_URL
         value: https://braidedu-frontend.onrender.com
       # Email: when set, confirmation and reset emails go out through Resend;
@@ -42,10 +41,3 @@ services:
       # update this value + redeploy the frontend if it differs.
       - key: VITE_API_URL
         value: https://braidedu-backend.onrender.com/api
-
-databases:
-  - name: braidedu-db
-    plan: free
-    region: oregon
-    databaseName: braidedu
-    user: braidedu

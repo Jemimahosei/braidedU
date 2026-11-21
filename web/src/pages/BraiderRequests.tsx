@@ -177,7 +177,10 @@ export default function BraiderRequests() {
             <div key={r.id} className="rv-card">
               <div className="rv-top">
                 <strong>{r.client_name.split(" ")[0]}</strong>
-                <span>{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
+                <span>
+                  {r.style_name ? `${cap(r.style_name)}, ` : ""}
+                  {new Date(r.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                </span>
               </div>
               <div className="rv-stars" role="img" aria-label={`${r.rating} out of 5 stars`}>
                 {"★".repeat(r.rating)}

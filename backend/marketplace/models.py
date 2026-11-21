@@ -137,6 +137,9 @@ class Listing(models.Model):
     duration_minutes = models.PositiveIntegerField()
     photo_url = models.URLField(max_length=500, blank=True)
     is_active = models.BooleanField(default=True)
+    # Days this style is offered, e.g. ["mon", "tue", "wed", "thu", "fri"].
+    # Empty means it follows the braider's own days.
+    available_days = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

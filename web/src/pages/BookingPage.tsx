@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api, cap, formatDate, formatPrice, formatTime, SERVICE_PLACES, type Booking } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { PhotoField } from "../components/PhotoField";
@@ -12,10 +12,13 @@ const STEPS = ["requested", "accepted", "paid", "confirmed"];
 export default function BookingPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [b, setB] = useState<Booking | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [shot, setShot] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [askCancel, setAskCancel] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -34,7 +37,8 @@ export default function BookingPage() {
   if (error) return <main className="dash-main"><h1>Your booking</h1><p className="error" style={{ marginTop: 16 }}>{error}</p></main>;
   if (!b) return <main className="dash-main"><h1>Your booking</h1><p className="muted" style={{ marginTop: 16 }}>Loading…</p></main>;
 
-  const mine = user.role === "client";
+  const mine =
+    user.user_id != null ? user.user_id === b.client_user_id : user.role === "client";
   const step = STEPS.indexOf(b.status === "completed" ? "confirmed" : b.status);
   const place = b.place === "my_place" ? `${b.braider_name}'s place` : SERVICE_PLACES[b.place] || "";
   const free = new Date(b.cancel_deadline).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
@@ -47,6 +51,31 @@ export default function BookingPage() {
       setShot([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "That didn't work.");
+    }
+  };
+
+  /** The braider's actions on this booking, from her side of the page. */
+  const braiderAct = async (action: "accept" | "decline" | "payment-received") => {
+    setError("");
+    setBusy(true);
+    try {
+      setB(await api.bookingAction(b.id, action));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That didn't work.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      await api.bookingAction(b.id, "cancel");
+      navigate("/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That didn't work.");
+      setBusy(false);
     }
   };
 
@@ -107,7 +136,10 @@ export default function BookingPage() {
           {b.pay?.deposit_note && (
             <>
               <span>Deposit</span>
-              <span>{b.pay.deposit_note}</span>
+              <span>
+                {b.pay.deposit_note}
+                {/^\$\d+/.test(b.pay.deposit_note) ? ", part of the total" : ""}
+              </span>
             </>
           )}
           <span>Reminder</span>
@@ -125,7 +157,7 @@ export default function BookingPage() {
         <section className="bk-card big">
           <h2 className="bk-h2">Pay {b.braider_name}</h2>
           <p className="bk-lede">
-            Payment goes straight to her. braidedU doesn't touch the money, and Venmo and Zelle can't refund you if something goes wrong. Send it to friends and family, not as a purchase.
+            Goes straight to her. Venmo and Zelle can't refund you if something goes wrong.
           </p>
           <div className="pay-grid">
             {b.pay.venmo &&
@@ -183,10 +215,56 @@ export default function BookingPage() {
         </section>
       )}
 
-      {mine && ["requested", "accepted", "paid", "confirmed"].includes(b.status) && (
-        <Link to="/dashboard" className="phone-cancel">
+      {!mine && (
+        <section className="bk-wait">
+          <strong>{b.braider_name}'s view</strong>
+          <div className="bk-actions" style={{ marginTop: 12 }}>
+            {b.status === "requested" && (
+              <>
+                <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => braiderAct("accept")}>
+                  Accept request
+                </button>
+                <button type="button" className="link-btn danger" disabled={busy} onClick={() => braiderAct("decline")}>
+                  Decline
+                </button>
+              </>
+            )}
+            {b.status === "paid" && (
+              <button type="button" className="btn" disabled={busy} onClick={() => braiderAct("payment-received")}>
+                Payment received
+              </button>
+            )}
+            {b.status === "accepted" && <span className="muted">Waiting for the client to pay.</span>}
+            <Link to={`/messages/${b.client_user_id}`} style={{ fontWeight: 600 }}>
+              Message {b.client_name}
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {mine && ["requested", "accepted", "paid", "confirmed"].includes(b.status) && !askCancel && (
+        <button type="button" className="phone-cancel" onClick={() => setAskCancel(true)}>
           Cancel booking
-        </Link>
+        </button>
+      )}
+      {mine && askCancel && (
+        <div className="bk-confirm">
+          <strong>Cancel this booking?</strong>
+          <div>
+            {b.braider_name} gets a message right away.{" "}
+            {new Date(b.cancel_deadline).getTime() > Date.now()
+              ? "You're inside her free cancel window."
+              : "You're past her free cancel window, so she may keep any deposit."}
+          </div>
+          <div className="bk-actions" style={{ marginTop: 12 }}>
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={cancel}>
+              Yes, cancel
+            </button>
+            <button type="button" className="btn btn-light" onClick={() => setAskCancel(false)}>
+              Keep it
+            </button>
+          </div>
+        </div>
       )}
       <p style={{ marginTop: 24 }}>
         <Link to="/dashboard" style={{ fontWeight: 600 }}>

@@ -44,21 +44,32 @@ class ListingSerializer(serializers.ModelSerializer):
         fields = [
             "id", "braider", "braider_id", "braider_name", "braider_is_demo",
             "campus_area", "style", "style_name", "title", "description",
-            "price", "duration_minutes", "photo_url", "is_active", "created_at", "updated_at",
+            "price", "duration_minutes", "photo_url", "is_active",
+            "available_days", "created_at", "updated_at",
         ]
         read_only_fields = ["braider", "created_at", "updated_at"]
 
     def validate_photo_url(self, value):
         return own_photo_url(self.context.get("request"), value)
 
+    def validate_available_days(self, value):
+        bad = [day for day in value if day not in WEEKDAYS]
+        if bad:
+            raise serializers.ValidationError(f"Invalid weekdays: {bad}. Use {WEEKDAYS}.")
+        return value
+
 
 class ReviewSerializer(serializers.ModelSerializer):
     client_name = serializers.CharField(source="client.display_name", read_only=True)
+    # The style that was reviewed, and who wrote it (for the Report link).
+    style_name = serializers.CharField(source="booking.listing.style.name", read_only=True)
+    client_user_id = serializers.IntegerField(source="client.user_id", read_only=True)
 
     class Meta:
         model = Review
         fields = [
-            "id", "booking", "client_name", "rating", "comment", "photo_urls",
+            "id", "booking", "client_name", "client_user_id", "style_name",
+            "rating", "comment", "photo_urls",
             "braider_reply", "replied_at", "created_at",
         ]
         read_only_fields = ["booking", "braider_reply", "replied_at", "created_at"]

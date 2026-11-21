@@ -13,11 +13,15 @@ function ThreadHead({ thread, onBlockChange }: { thread: Thread; onBlockChange: 
     <>
       <header className="chat-head">
         <Link to="/messages" className="chat-back">‹ All</Link>
+        <span className="chat-avatar">
+          <Avatar name={thread.name} src={thread.photo_url} small />
+        </span>
         <strong className="chat-title">{thread.name}</strong>
         <span className="chat-tools">
           {thread.profile_id && (
             <Link to={`/braiders/${thread.profile_id}`} style={{ fontWeight: 600 }}>
-              View profile
+              <span className="full-name">View profile</span>
+              <span className="short-name">Profile</span>
             </Link>
           )}
           <button type="button" className="text-btn" onClick={() => s.setOpen(!s.open)}>

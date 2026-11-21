@@ -575,6 +575,36 @@ a.tag:active {
   font-weight: 600;
   text-decoration: none;
 }
+button.phone-cancel {
+  border: 0;
+  background: transparent;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+/* Shown only on phones: the address/cancel note under Reviews on a profile. */
+.profile-note-mobile {
+  display: none;
+}
+/* The other person's photo in a chat header: phones only. */
+.chat-avatar {
+  display: none;
+}
+/* "List your chair": centered heading with Cancel at the top right. */
+.join-head {
+  position: relative;
+  text-align: center;
+}
+.join-head h1 {
+  text-align: center;
+}
+.join-head .auth-link {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
 .profile-btns {
   display: contents;
 }
@@ -2566,6 +2596,16 @@ a.tag:active {
   .ig-btn,
   .short-name {
     display: inline-flex;
+  }
+  .profile-note-mobile {
+    display: block;
+    margin-top: 18px;
+    color: var(--ink-2);
+    font-size: 15px;
+  }
+  .chat-avatar {
+    display: block;
+    flex: 0 0 auto;
   }
   .full-name {
     display: none;

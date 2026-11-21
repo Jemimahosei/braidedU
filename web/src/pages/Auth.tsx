@@ -170,8 +170,11 @@ export function Signup() {
         <div className="field">
           <label htmlFor="su-pass">Password</label>
           <input id="su-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-          <span className="hint">8 or more characters.</span>
         </div>
+        <p className="muted" style={{ margin: 0 }}>
+          By continuing you agree to the <Link to="/terms">Terms</Link> and{" "}
+          <Link to="/privacy">Privacy policy</Link>.
+        </p>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn btn-block" type="submit" disabled={busy || bad}>
           {busy ? "Creating…" : "Create account"}

@@ -53,6 +53,27 @@ class CornellSignupTests(APITestCase):
         r = self.client.post("/api/auth/confirm/", {"token": emails.make_token(user, "reset")}, format="json")
         self.assertEqual(r.status_code, 400)
 
+    def test_stale_auth_token_does_not_block_public_auth_endpoints(self):
+        # Regression: a browser holding a token from a deleted account (e.g.
+        # after the site moved databases) used to get 401 "Invalid token."
+        # from TokenAuthentication before the view ever ran — so a valid
+        # confirmation link failed, and so did log in. Public auth endpoints
+        # skip authentication entirely, so a stale header is ignored.
+        self.register()
+        user = User.objects.get(username="ada@cornell.edu")
+        stale = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {stale}")
+        r = self.client.post("/api/auth/confirm/", {"token": "nope"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["detail"], "That link is not valid any more. Ask for a new one.")
+        r = self.client.post(
+            "/api/auth/confirm/", {"token": emails.make_token(user, "confirm")}, format="json"
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("token", r.data)
+        r = self.client.post("/api/auth/login/", {"username": "ada@cornell.edu", "password": PW}, format="json")
+        self.assertEqual(r.status_code, 200)
+
     def test_wrong_password(self):
         self.register()
         r = self.client.post("/api/auth/login/", {"username": "ada@cornell.edu", "password": "x"}, format="json")

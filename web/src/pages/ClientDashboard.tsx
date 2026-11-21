@@ -7,12 +7,14 @@ import {
   formatPrice,
   formatTime,
   initials,
+  isBraider,
   sized,
   SERVICE_PLACES,
   TINTS,
   todayISO,
   type Booking,
 } from "../lib/api";
+import { useAuth } from "../lib/auth";
 
 export const CLIENT_STATUS: Record<string, string> = {
   requested: "Requested",
@@ -53,6 +55,7 @@ type Tab = "up" | "past" | "canc";
 
 /** Client bookings, with cancel and reschedule (mockup: Bookings.dc.html). */
 export default function ClientDashboard() {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [tab, setTab] = useState<Tab>("up");
   const [error, setError] = useState("");
@@ -135,6 +138,8 @@ export default function ClientDashboard() {
           <span>
             {inside ? `Free until ${when}, ${b.cancel_window_hours} hours before` : `Past the free window. ${b.braider_name} may keep any deposit`}
           </span>
+          <span>Bring</span>
+          <span>Hair washed and detangled</span>
           {b.notes && (
             <>
               <span>Notes</span>
@@ -245,6 +250,11 @@ export default function ClientDashboard() {
             <Link to="/browse" className="btn">
               Find a braider
             </Link>
+            {!isBraider(user) && (
+              <p className="auth-foot" style={{ marginBottom: 0 }}>
+                You braid? <Link to="/join">List your chair</Link>
+              </p>
+            )}
           </section>
         ) : (
           upcoming.map(upCard)

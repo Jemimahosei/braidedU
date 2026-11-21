@@ -7,6 +7,7 @@ import {
   formatDate,
   formatPrice,
   formatTime,
+  hasClient,
   todayISO,
   WEEKDAYS,
   sized,
@@ -14,11 +15,12 @@ import {
   type Booking,
   type Braider,
   type Listing,
+  type Review,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar } from "../components/ui";
 import { PhotoField } from "../components/PhotoField";
-import { SafetyMenu } from "../components/SafetyMenu";
+import { ReportForm, useSafety, SafetyMenu } from "../components/SafetyMenu";
 
 const hrs = (m: number) => {
   const h = Math.round((m / 60) * 10) / 10;
@@ -37,6 +39,48 @@ function StarRow({ rating }: { rating: number }) {
     <div className="rv-stars" role="img" aria-label={`${rating} out of 5 stars`}>
       {"★".repeat(rating)}
       <span className="dim">{"★".repeat(5 - rating)}</span>
+    </div>
+  );
+}
+
+/** One review on a braider's page: style and month, the reply, and a Report link. */
+function ReviewCard({ r, braiderName }: { r: Review; braiderName: string }) {
+  const first = r.client_name.split(" ")[0];
+  const s = useSafety(r.client_user_id, first, undefined, undefined, `Review on ${braiderName}'s page.`);
+  return (
+    <div className="rv-card">
+      <div className="rv-top">
+        <strong>{first}</strong>
+        <span>
+          {r.style_name ? `${cap(r.style_name)}, ` : ""}
+          {monthOf(r.created_at)}{" "}
+          <button type="button" className="text-btn" onClick={() => s.setOpen(!s.open)}>
+            Report
+          </button>
+        </span>
+      </div>
+      <StarRow rating={r.rating} />
+      {r.comment && <p className="rv-text">{r.comment}</p>}
+      {r.braider_reply && (
+        <div className="rv-reply">
+          <strong>{braiderName} replied</strong> <span>{r.braider_reply}</span>
+        </div>
+      )}
+      {r.photo_urls?.length > 0 && (
+        <div className="rv-photos">
+          {r.photo_urls.map((u) => (
+            <a key={u} href={u} target="_blank" rel="noreferrer">
+              <img src={sized(u, 240)} alt="Photo from this review" loading="lazy" />
+            </a>
+          ))}
+        </div>
+      )}
+      <ReportForm userId={r.client_user_id} s={s} />
+      {s.msg && (
+        <p className="notice" role="status" style={{ marginTop: 10 }}>
+          {s.msg}
+        </p>
+      )}
     </div>
   );
 }
@@ -177,7 +221,7 @@ export default function BraiderDetail() {
       navigate(`/login?next=/braiders/${id}`);
       return;
     }
-    if (user.role !== "client") {
+    if (!hasClient(user)) {
       setBookingErr("Only client accounts can book. Log in as a client to request this appointment.");
       return;
     }
@@ -205,7 +249,7 @@ export default function BraiderDetail() {
       navigate(`/login?next=/braiders/${id}`);
       return;
     }
-    if (user.role !== "client") {
+    if (!hasClient(user)) {
       setCustomErr("Only client accounts can send a custom request.");
       return;
     }
@@ -307,31 +351,13 @@ export default function BraiderDetail() {
         ) : (
           <div className="rv-list">
             {braider.reviews.map((r) => (
-              <div key={r.id} className="rv-card">
-                <div className="rv-top">
-                  <strong>{r.client_name.split(" ")[0]}</strong>
-                  <span>{monthOf(r.created_at)}</span>
-                </div>
-                <StarRow rating={r.rating} />
-                {r.comment && <p className="rv-text">{r.comment}</p>}
-                {r.braider_reply && (
-                  <div className="rv-reply">
-                    <strong>{name} replied</strong> <span>{r.braider_reply}</span>
-                  </div>
-                )}
-                {r.photo_urls?.length > 0 && (
-                  <div className="rv-photos">
-                    {r.photo_urls.map((u) => (
-                      <a key={u} href={u} target="_blank" rel="noreferrer">
-                        <img src={sized(u, 240)} alt="Photo from this review" loading="lazy" />
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ReviewCard key={r.id} r={r} braiderName={name} />
             ))}
           </div>
         )}
+        <p className="profile-note-mobile">
+          Address shared after {name} accepts. Free to cancel until {braider.cancel_window_hours} hours before.
+        </p>
 
         {user && !isSelf && (
           <div style={{ marginTop: 16 }}>
@@ -446,6 +472,8 @@ export default function BraiderDetail() {
         <div className="book-notes">
           <span>Address shared after {name} accepts.</span>
           <span>Free to cancel until {braider.cancel_window_hours} hours before.</span>
+          <span>Bring: hair washed and detangled.</span>
+          {mode === "custom" && <span>Custom tab: a description, a reference photo and a budget.</span>}
           {days && (
             <span>
               Usually free {days}

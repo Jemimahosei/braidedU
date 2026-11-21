@@ -193,7 +193,7 @@ export function BraiderRow({
   const line =
     style && from !== null
       ? `${cap(style)} from ${formatPrice(from)}`
-      : `${where}${braider.match_score !== undefined ? `, match ${braider.match_score}/100` : ""}`;
+      : where;
   const rating =
     braider.average_rating !== null && braider.average_rating !== undefined
       ? `★ ${braider.average_rating.toFixed(1)}${braider.review_count > 0 ? ` (${braider.review_count})` : ""}`

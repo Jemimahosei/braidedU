@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -45,12 +45,39 @@ from .serializers import (
 )
 
 
+def _braider_profile(user):
+    """The user's BraiderProfile, or None."""
+    return user.braider_profile if hasattr(user, "braider_profile") else None
+
+
+def _client_profile(user):
+    """The user's ClientProfile, or None."""
+    return user.client_profile if hasattr(user, "client_profile") else None
+
+
+def _roles(user):
+    """All roles this user has: braider, client, or both (one login, both sides)."""
+    roles = []
+    if _braider_profile(user) is not None:
+        roles.append("braider")
+    if _client_profile(user) is not None:
+        roles.append("client")
+    return roles
+
+
 def _role_and_profile(user):
-    """Return (role, profile) for a user, or (None, None)."""
-    if hasattr(user, "braider_profile"):
-        return "braider", user.braider_profile
-    if hasattr(user, "client_profile"):
-        return "client", user.client_profile
+    """Return (role, profile) for a user, or (None, None).
+
+    Kept for the single-role paths: a user with both profiles is a braider
+    first. Anywhere one side specifically matters, use _braider_profile /
+    _client_profile instead of this.
+    """
+    bp = _braider_profile(user)
+    if bp is not None:
+        return "braider", bp
+    cp = _client_profile(user)
+    if cp is not None:
+        return "client", cp
     return None, None
 
 
@@ -60,15 +87,25 @@ def _role_and_profile(user):
 def _session(user):
     token, _ = Token.objects.get_or_create(user=user)
     role, profile = _role_and_profile(user)
+    bp, cp = _braider_profile(user), _client_profile(user)
     return {
         "token": token.key,
         "username": user.username,
+        "user_id": user.id,
         "role": role,
+        "roles": _roles(user),
         "profile_id": profile.id if profile else None,
+        "braider_profile_id": bp.id if bp else None,
+        "client_profile_id": cp.id if cp else None,
     }
 
 
+# Public auth endpoints skip authentication entirely: a browser can hold a
+# stale token (e.g. its account was deleted when the site moved databases)
+# and TokenAuthentication would 401 "Invalid token." before the view runs,
+# breaking confirmation links and log in. A stale header must be ignored here.
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def register(request):
     serializer = RegisterSerializer(data=request.data)
@@ -87,6 +124,7 @@ def register(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def confirm_email(request):
     user = emails.read_token(request.data.get("token", ""), "confirm", emails.CONFIRM_MAX_AGE)
@@ -102,6 +140,7 @@ def confirm_email(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def resend_confirmation(request):
     email = str(request.data.get("email", "")).strip().lower()
@@ -113,6 +152,7 @@ def resend_confirmation(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def password_reset(request):
     email = str(request.data.get("email", "")).strip().lower()
@@ -123,6 +163,7 @@ def password_reset(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def password_reset_confirm(request):
     user = emails.read_token(request.data.get("token", ""), "reset", emails.RESET_MAX_AGE)
@@ -143,6 +184,7 @@ def password_reset_confirm(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def login(request):
     email = str(request.data.get("username") or request.data.get("email") or "").strip().lower()
@@ -161,12 +203,40 @@ def login(request):
 @api_view(["GET"])
 def me(request):
     role, profile = _role_and_profile(request.user)
-    data = {"username": request.user.username, "role": role, "profile_id": profile.id if profile else None}
+    bp, cp = _braider_profile(request.user), _client_profile(request.user)
+    data = {
+        "username": request.user.username,
+        "user_id": request.user.id,
+        "role": role,
+        "roles": _roles(request.user),
+        "profile_id": profile.id if profile else None,
+        "braider_profile_id": bp.id if bp else None,
+        "client_profile_id": cp.id if cp else None,
+    }
     if role == "braider":
         data["profile"] = BraiderProfileSerializer(profile).data
     elif role == "client":
         data["profile"] = ClientProfileSerializer(profile).data
     return Response(data)
+
+
+@api_view(["POST"])
+def become_braider(request):
+    """Add a braider profile to the signed-in account.
+
+    Braiders and clients share one login: a client who decides to braid
+    keeps the same account and gains the braider side. The name starts
+    from the client display name; the Join page fills in the rest.
+    """
+    if _braider_profile(request.user) is not None:
+        return Response(
+            {"detail": "You already have a braider profile."},
+            status=status.HTTP_409_CONFLICT,
+        )
+    cp = _client_profile(request.user)
+    display_name = cp.display_name if cp and cp.display_name else request.user.username.split("@")[0]
+    profile = BraiderProfile.objects.create(user=request.user, display_name=display_name)
+    return Response(BraiderProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
 
 
 # ---------------------------------------------------------------- styles
@@ -207,8 +277,8 @@ class BraiderDetailView(generics.RetrieveAPIView):
 
 @api_view(["GET", "PUT", "PATCH"])
 def my_braider_profile(request):
-    role, profile = _role_and_profile(request.user)
-    if role != "braider":
+    profile = _braider_profile(request.user)
+    if profile is None:
         return Response({"detail": "No braider profile for this user."}, status=status.HTTP_404_NOT_FOUND)
     if request.method == "GET":
         return Response(BraiderProfileSerializer(profile, context={"request": request}).data)
@@ -220,8 +290,8 @@ def my_braider_profile(request):
 
 @api_view(["GET", "PUT", "PATCH"])
 def my_client_profile(request):
-    role, profile = _role_and_profile(request.user)
-    if role != "client":
+    profile = _client_profile(request.user)
+    if profile is None:
         return Response({"detail": "No client profile for this user."}, status=status.HTTP_404_NOT_FOUND)
     if request.method == "GET":
         return Response(ClientProfileSerializer(profile).data)
@@ -283,8 +353,8 @@ class ListingListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        role, profile = _role_and_profile(self.request.user)
-        if role != "braider":
+        profile = _braider_profile(self.request.user)
+        if profile is None:
             raise PermissionDenied("Only braiders can create listings.")
         serializer.save(braider=profile)
 
@@ -296,14 +366,14 @@ class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         listing = self.get_object()
-        role, profile = _role_and_profile(self.request.user)
-        if role != "braider" or listing.braider_id != profile.id:
+        profile = _braider_profile(self.request.user)
+        if profile is None or listing.braider_id != profile.id:
             raise PermissionDenied("Not your listing.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        role, profile = _role_and_profile(self.request.user)
-        if role != "braider" or instance.braider_id != profile.id:
+        profile = _braider_profile(self.request.user)
+        if profile is None or instance.braider_id != profile.id:
             raise PermissionDenied("Not your listing.")
         # Deleting would also delete the bookings (and receipts) made on it.
         if instance.bookings.exists():
@@ -313,8 +383,8 @@ class ListingDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 @api_view(["GET"])
 def my_listings(request):
-    role, profile = _role_and_profile(request.user)
-    if role != "braider":
+    profile = _braider_profile(request.user)
+    if profile is None:
         return Response({"detail": "No braider profile for this user."}, status=status.HTTP_404_NOT_FOUND)
     listings = Listing.objects.filter(braider=profile).select_related("style")
     return Response(ListingSerializer(listings, many=True).data)
@@ -361,6 +431,8 @@ def _open_slots(braider, listing, day, exclude_id=None):
         return []
     if WEEKDAY_KEYS[day.weekday()] not in braider.available_days:
         return []
+    if listing.available_days and WEEKDAY_KEYS[day.weekday()] not in listing.available_days:
+        return []
     if not braider.available_start_time or not braider.available_end_time:
         return []
     if _on_time_off(braider, day):
@@ -395,8 +467,8 @@ def braider_slots(request, braider_id):
 
 @api_view(["GET", "POST"])
 def my_time_off(request):
-    role, profile = _role_and_profile(request.user)
-    if role != "braider":
+    profile = _braider_profile(request.user)
+    if profile is None:
         return Response({"detail": "Braiders only."}, status=status.HTTP_403_FORBIDDEN)
     if request.method == "GET":
         upcoming = profile.time_off.filter(end_date__gte=timezone.localdate())
@@ -409,8 +481,8 @@ def my_time_off(request):
 
 @api_view(["DELETE"])
 def delete_time_off(request, time_off_id):
-    role, profile = _role_and_profile(request.user)
-    if role != "braider":
+    profile = _braider_profile(request.user)
+    if profile is None:
         return Response({"detail": "Braiders only."}, status=status.HTTP_403_FORBIDDEN)
     get_object_or_404(TimeOff, id=time_off_id, braider=profile).delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
@@ -418,24 +490,30 @@ def delete_time_off(request, time_off_id):
 
 @api_view(["GET", "POST"])
 def bookings(request):
-    role, profile = _role_and_profile(request.user)
+    bp, cp = _braider_profile(request.user), _client_profile(request.user)
     if request.method == "GET":
-        if role == "client":
-            qs = Booking.objects.filter(client=profile)
-        elif role == "braider":
-            qs = Booking.objects.filter(braider=profile)
-        else:
+        # A user with both profiles sees both sides of their bookings.
+        qs = Booking.objects.none()
+        if cp is not None:
+            qs = qs | Booking.objects.filter(client=cp)
+        if bp is not None:
+            qs = qs | Booking.objects.filter(braider=bp)
+        if cp is None and bp is None:
             return Response({"detail": "No profile for this user."}, status=status.HTTP_404_NOT_FOUND)
         status_filter = request.query_params.get("status")
         if status_filter:
             qs = qs.filter(status=status_filter)
-        qs = qs.select_related("listing__style", "braider", "client")
+        qs = qs.select_related("listing__style", "braider", "client").distinct()
         return Response(BookingSerializer(qs, many=True).data)
 
     # POST: client requests a booking for a listing.
-    if role != "client":
+    if cp is None:
         return Response({"detail": "Only clients can request bookings."}, status=status.HTTP_403_FORBIDDEN)
     listing = get_object_or_404(Listing, id=request.data.get("listing"))
+    if listing.braider.user_id == request.user.id:
+        return Response(
+            {"detail": "You can't book your own chair."}, status=status.HTTP_400_BAD_REQUEST
+        )
     from .views_social import is_blocked
 
     if is_blocked(request.user, listing.braider.user):
@@ -463,30 +541,35 @@ def bookings(request):
         return Response({"detail": "Choose where the appointment will be."}, status=status.HTTP_400_BAD_REQUEST)
     serializer = BookingSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    booking = serializer.save(client=profile, braider=listing.braider, status="requested")
+    booking = serializer.save(client=cp, braider=listing.braider, status="requested")
     emails.booking_requested(booking)
     return Response(BookingSerializer(booking).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET"])
 def booking_detail(request, booking_id):
-    role, profile = _role_and_profile(request.user)
+    bp, cp = _braider_profile(request.user), _client_profile(request.user)
     booking = get_object_or_404(Booking, id=booking_id)
-    if role == "client" and booking.client_id != profile.id:
+    mine = (cp is not None and booking.client_id == cp.id) or (
+        bp is not None and booking.braider_id == bp.id
+    )
+    if not mine:
+        if cp is None and bp is None:
+            return Response({"detail": "No profile for this user."}, status=status.HTTP_404_NOT_FOUND)
         return Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
-    if role == "braider" and booking.braider_id != profile.id:
-        return Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
-    if role not in ("client", "braider"):
-        return Response({"detail": "No profile for this user."}, status=status.HTTP_404_NOT_FOUND)
     return Response(BookingSerializer(booking).data)
 
 
 def _own_booking(request, booking_id, actor):
     """Return (booking, error response). actor is 'braider' or 'client'."""
-    role, profile = _role_and_profile(request.user)
     booking = get_object_or_404(Booking, id=booking_id)
-    owner = booking.braider_id if actor == "braider" else booking.client_id
-    if role != actor or owner != profile.id:
+    if actor == "braider":
+        profile = _braider_profile(request.user)
+        owner = booking.braider_id
+    else:
+        profile = _client_profile(request.user)
+        owner = booking.client_id
+    if profile is None or owner != profile.id:
         return None, Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
     return booking, None
 
@@ -630,9 +713,9 @@ def reschedule_booking(request, booking_id):
 @api_view(["GET"])
 def booking_receipt(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
-    role, profile = _role_and_profile(request.user)
-    mine = (role == "client" and booking.client_id == profile.id) or (
-        role == "braider" and booking.braider_id == profile.id
+    bp, cp = _braider_profile(request.user), _client_profile(request.user)
+    mine = (cp is not None and booking.client_id == cp.id) or (
+        bp is not None and booking.braider_id == bp.id
     )
     if not mine:
         return Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
@@ -663,8 +746,8 @@ def reviews_for_booking(request, booking_id):
         if hasattr(booking, "review"):
             return Response(ReviewSerializer(booking.review).data)
         return Response({"detail": "No review yet."}, status=status.HTTP_404_NOT_FOUND)
-    role, profile = _role_and_profile(request.user)
-    if role != "client" or booking.client_id != profile.id:
+    cp = _client_profile(request.user)
+    if cp is None or booking.client_id != cp.id:
         return Response({"detail": "Not your booking."}, status=status.HTTP_403_FORBIDDEN)
     if booking.status != "completed":
         return Response(
@@ -687,7 +770,7 @@ def reviews_for_booking(request, booking_id):
     if any(u not in mine for u in urls):
         return Response({"detail": "Upload each photo first, then use its link."}, status=status.HTTP_400_BAD_REQUEST)
     review = Review.objects.create(
-        booking=booking, client=profile, braider=booking.braider,
+        booking=booking, client=cp, braider=booking.braider,
         rating=rating, comment=request.data.get("comment", ""), photo_urls=urls,
     )
     return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)

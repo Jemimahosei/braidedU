@@ -2,10 +2,16 @@ import { useState } from "react";
 import { api, REPORT_REASONS } from "../lib/api";
 
 /** State and actions for reporting or blocking another person. */
-export function useSafety(userId: number, name: string, blocked?: boolean, onBlockChange?: (blocked: boolean) => void) {
+export function useSafety(
+  userId: number,
+  name: string,
+  blocked?: boolean,
+  onBlockChange?: (blocked: boolean) => void,
+  initialDetail = "",
+) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const [detail, setDetail] = useState("");
+  const [detail, setDetail] = useState(initialDetail);
   const [msg, setMsg] = useState("");
 
   const send = async (e: React.FormEvent) => {

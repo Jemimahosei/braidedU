@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "./lib/api";
+import { api, hasClient, isBraider } from "./lib/api";
 import { HashRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { Mark } from "./components/ui";
@@ -17,11 +17,12 @@ import MyPageEdit from "./pages/MyPageEdit";
 import Join from "./pages/Join";
 import Account from "./pages/Account";
 import BookingPage from "./pages/BookingPage";
+import { Privacy, Terms } from "./pages/Legal";
 
 function DashboardRoute() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login?next=/dashboard" replace />;
-  return user.role === "braider" ? <BraiderRequests /> : <ClientDashboard />;
+  return isBraider(user) ? <BraiderRequests /> : <ClientDashboard />;
 }
 
 /** Pages that only a signed-in braider can use. */
@@ -29,7 +30,16 @@ function BraiderOnly({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(pathname)}`} replace />;
-  if (user.role !== "braider") return <Navigate to="/dashboard" replace />;
+  if (!isBraider(user)) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+/** Pages that only a signed-in client can use (a dual login qualifies). */
+function ClientOnly({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(pathname)}`} replace />;
+  if (!hasClient(user)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -50,7 +60,8 @@ function useUnread() {
 function BottomNav({ unread }: { unread: number }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  const braider = user?.role === "braider";
+  const braider = isBraider(user);
+  const client = hasClient(user);
   return (
     <nav className="tabbar" aria-label="Main">
       {braider ? (
@@ -58,6 +69,7 @@ function BottomNav({ unread }: { unread: number }) {
           <NavLink to="/dashboard">Requests</NavLink>
           <NavLink to="/messages">Messages{unread > 0 ? ` (${unread})` : ""}</NavLink>
           <NavLink to="/postings">Postings</NavLink>
+          {client && <NavLink to="/my-bookings">Bookings</NavLink>}
         </>
       ) : (
         <>
@@ -74,7 +86,8 @@ function BottomNav({ unread }: { unread: number }) {
 function Header({ unread }: { unread: number }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const braider = user?.role === "braider";
+  const braider = isBraider(user);
+  const client = hasClient(user);
   return (
     <header className="site-header">
       <div className="wrap">
@@ -90,12 +103,14 @@ function Header({ unread }: { unread: number }) {
               <NavLink to="/postings">Postings</NavLink>
               <NavLink to="/availability">Availability</NavLink>
               {user?.profile_id && <NavLink to={`/braiders/${user.profile_id}`}>My page</NavLink>}
+              {client && <NavLink to="/my-bookings">My bookings</NavLink>}
             </>
           ) : (
             <>
               <NavLink to="/browse">Find a braider</NavLink>
               <NavLink to="/messages">Messages{user && unread > 0 ? ` (${unread})` : ""}</NavLink>
               <NavLink to="/dashboard">My bookings</NavLink>
+              {user && <NavLink to="/join">List your chair</NavLink>}
             </>
           )}
           {user ? (
@@ -138,6 +153,8 @@ function Shell() {
             <Route path="/braiders/:id" element={<BraiderDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/confirm" element={<Confirm />} />
             <Route path="/forgot" element={<Forgot />} />
             <Route path="/reset" element={<Reset />} />
@@ -151,13 +168,11 @@ function Shell() {
             <Route path="/availability" element={<BraiderOnly><Availability /></BraiderOnly>} />
             <Route path="/my-page" element={<BraiderOnly><MyPageEdit /></BraiderOnly>} />
             <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/my-bookings" element={<ClientOnly><ClientDashboard /></ClientOnly>} />
             <Route path="/account" element={<Account />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
       </div>
-      <footer className="site-footer">
-        <div className="wrap">A Cornell student project</div>
-      </footer>
       <BottomNav unread={unread} />
     </div>
   );

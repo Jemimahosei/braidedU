@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { api, cap, CAMPUS_AREAS, sized, type BraidStyle } from "../lib/api";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { api, cap, CAMPUS_AREAS, getToken, isBraider, sized, type BraidStyle } from "../lib/api";
 import { usePhotoUpload } from "../components/PhotoField";
 import { useAuth } from "../lib/auth";
 
@@ -48,7 +48,7 @@ const blank = (): Row => ({ style: "", price: "", hours: "", photo: "" });
 
 /** Braider sign-up details (mockup: Join.dc.html). Shown right after the email is confirmed. */
 export default function Join() {
-  const { user } = useAuth();
+  const { user, signIn } = useAuth();
   const navigate = useNavigate();
   const [styles, setStyles] = useState<BraidStyle[]>([]);
   const [name, setName] = useState("");
@@ -64,23 +64,32 @@ export default function Join() {
   const mine = usePhotoUpload("profile", setPhoto);
 
   useEffect(() => {
-    if (user?.role !== "braider") return;
+    if (!user) return;
     api.styles().then(setStyles).catch(() => setStyles([]));
-    api
-      .myBraiderProfile()
-      .then((p) => {
-        setName(p.display_name || "");
-        setArea(p.campus_area || "");
-        setIg(p.instagram || "");
-        setPhoto(p.photo_url || "");
-        setVenmo(p.venmo_handle || "");
-        setZelle(p.zelle_contact || "");
-      })
-      .catch(() => {});
+    if (isBraider(user)) {
+      // Already a braider: prefill from the existing page.
+      api
+        .myBraiderProfile()
+        .then((p) => {
+          setName(p.display_name || "");
+          setArea(p.campus_area || "");
+          setIg(p.instagram || "");
+          setPhoto(p.photo_url || "");
+          setVenmo(p.venmo_handle || "");
+          setZelle(p.zelle_contact || "");
+        })
+        .catch(() => {});
+    } else {
+      // Signed in as a client: prefill the name from the client profile.
+      // The braider profile itself is created on submit.
+      api
+        .myClientProfile()
+        .then((p) => setName(p.display_name || ""))
+        .catch(() => {});
+    }
   }, [user]);
 
   if (!user) return <Navigate to="/login?next=/join" replace />;
-  if (user.role !== "braider") return <Navigate to="/dashboard" replace />;
 
   const setRow = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
@@ -89,6 +98,15 @@ export default function Join() {
     setError("");
     setBusy(true);
     try {
+      if (!isBraider(user)) {
+        // Signed in as a client: add the braider side to this same login.
+        // A 409 just means the profile is already there; carry on.
+        try {
+          await api.becomeBraider();
+        } catch (err) {
+          if (!(err instanceof Error) || !/already have/i.test(err.message)) throw err;
+        }
+      }
       await api.updateBraiderProfile({
         display_name: name.trim(),
         campus_area: area,
@@ -109,6 +127,16 @@ export default function Join() {
           photo_url: r.photo,
         });
       }
+      // Refresh the saved login so the braider nav (Requests, Postings,
+      // Availability, My page) appears right away, then go to requests.
+      const token = getToken();
+      if (token) {
+        try {
+          signIn(token, await api.me());
+        } catch {
+          /* The page was created; the next sign-in picks the roles up. */
+        }
+      }
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save your page.");
@@ -119,7 +147,12 @@ export default function Join() {
 
   return (
     <main className="join-main">
-      <h1>List your chair</h1>
+      <div className="join-head">
+        <h1>List your chair</h1>
+        <Link to="/dashboard" className="auth-link">
+          Cancel
+        </Link>
+      </div>
       <form className="join-form" onSubmit={submit}>
         <section className="join-card join-photo">
           <button type="button" className="join-slot round" style={{ width: 96, height: 96 }} aria-label={photo ? "Change your photo" : "Add your photo"} onClick={mine.open}>

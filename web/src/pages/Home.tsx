@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, cap, formatPrice, todayISO, type Braider, type BraidStyle } from "../lib/api";
 import { BraiderRow, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
+import { useAuth } from "../lib/auth";
 
 export default function Home() {
+  const { user } = useAuth();
   const [styles, setStyles] = useState<BraidStyle[]>([]);
   const [braiders, setBraiders] = useState<Braider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export default function Home() {
           </div>
         ) : braiders.length === 0 ? (
           <p className="muted">
-            No braiders are listed yet. <Link to="/signup?role=braider">List your chair</Link> to be the first.
+            No braiders are listed yet. <Link to={user ? "/join" : "/signup?role=braider"}>List your chair</Link> to be the first.
           </p>
         ) : (
           <div className="rows rows-home">
@@ -164,7 +166,7 @@ export default function Home() {
       <section className="wrap" style={{ paddingBottom: 32 }}>
         <div className="band band-sand">
           <h2>You braid? List your chair.</h2>
-          <Link to="/signup?role=braider" className="btn btn-ink">
+          <Link to={user ? "/join" : "/signup?role=braider"} className="btn btn-ink">
             Sign up as a braider
           </Link>
         </div>

@@ -23,6 +23,8 @@ export interface Listing {
   price: string;
   duration_minutes: number;
   is_active: boolean;
+  /** Days this style is offered; empty means it follows the braider's days. */
+  available_days: string[];
   photo_url: string;
 }
 
@@ -30,6 +32,10 @@ export interface Review {
   id: number;
   booking: number;
   client_name: string;
+  /** The braider's client, for the Report link on the review. */
+  client_user_id: number;
+  /** The style that was reviewed, shown as "Box braids, Oct 2026". */
+  style_name: string;
   rating: number;
   comment: string;
   photo_urls: string[];
@@ -176,14 +182,35 @@ export function sized(url: string, width: number): string {
 export interface Session {
   token: string;
   username: string;
+  user_id?: number | null;
   role: AuthUser["role"];
+  roles?: ("braider" | "client")[];
   profile_id: number | null;
+  braider_profile_id?: number | null;
+  client_profile_id?: number | null;
 }
 
 export interface AuthUser {
   username: string;
+  user_id?: number | null;
   role: "braider" | "client" | null;
+  /** All roles this login has. Older saved sessions only carry `role`. */
+  roles?: ("braider" | "client")[];
   profile_id: number | null;
+  braider_profile_id?: number | null;
+  client_profile_id?: number | null;
+}
+
+/** True when this login has a braider profile (one login can have both sides). */
+export function isBraider(u: AuthUser | null | undefined): boolean {
+  if (!u) return false;
+  return u.roles ? u.roles.includes("braider") : u.role === "braider";
+}
+
+/** True when this login has a client profile. */
+export function hasClient(u: AuthUser | null | undefined): boolean {
+  if (!u) return false;
+  return u.roles ? u.roles.includes("client") : u.role === "client";
 }
 
 export interface Paginated<T> {
@@ -324,6 +351,10 @@ export const api = {
   myBraiderProfile: () => request<Braider>("/braiders/me/"),
   updateBraiderProfile: (data: Record<string, unknown>) =>
     request<Braider>("/braiders/me/", { method: "PATCH", body: JSON.stringify(data) }),
+  /** Add a braider profile to the signed-in account (one login, both sides). */
+  becomeBraider: () =>
+    request<Braider>("/auth/become-braider/", { method: "POST", body: JSON.stringify({}) }),
+  me: () => request<Session>("/auth/me/"),
   myClientProfile: () => request<{ id: number; display_name: string }>("/clients/me/"),
   bookings: (status?: string) =>
     request<Booking[]>(`/bookings/${status ? `?status=${status}` : ""}`),
