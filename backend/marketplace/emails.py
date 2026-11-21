@@ -32,6 +32,11 @@ def frontend_url():
     return os.environ.get("FRONTEND_URL", default).rstrip("/")
 
 
+def email_mode():
+    """'resend' when a Resend key is set, otherwise 'console' (printed to the log)."""
+    return "resend" if os.environ.get("RESEND_API_KEY") else "console"
+
+
 def send_email(to, subject, text):
     api_key = os.environ.get("RESEND_API_KEY")
     sender = os.environ.get("RESEND_FROM", "braidedU <onboarding@resend.dev>")
@@ -77,7 +82,7 @@ def read_token(token, purpose, max_age):
 
 def send_confirmation(user):
     link = f"{frontend_url()}/#/confirm?token={make_token(user, 'confirm')}"
-    send_email(
+    return send_email(
         user.email,
         "Confirm your braidedU account",
         f"Welcome to braidedU!\n\nConfirm your Cornell email to finish signing up:\n{link}\n\n"
