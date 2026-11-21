@@ -179,6 +179,17 @@ export function sized(url: string, width: number): string {
   return url.replace("/upload/", `/upload/f_auto,q_auto,w_${width},c_limit/`);
 }
 
+/**
+ * A Cloudinary photo cropped to exactly width x height, centred on the
+ * face when one is detected (falls back to a centre crop when no face is
+ * found); other links pass through. Used for braider card photos, where a
+ * plain centre crop of a tall selfie cut faces off.
+ */
+export function sizedFace(url: string, width: number, height: number): string {
+  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
+  return url.replace("/upload/", `/upload/f_auto,q_auto,w_${width},h_${height},c_fill,g_face/`);
+}
+
 export interface Session {
   token: string;
   username: string;

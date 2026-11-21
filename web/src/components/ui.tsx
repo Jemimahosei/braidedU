@@ -8,6 +8,7 @@ import {
   formatPrice,
   initials,
   sized,
+  sizedFace,
   type Braider,
   type Listing,
 } from "../lib/api";
@@ -218,7 +219,7 @@ export function BraiderRow({
     <Link to={`/braiders/${braider.id}`} className="braider-card">
       <div className="photo-frame" style={{ background: TINTS[braider.id % TINTS.length] }}>
         {braider.photo_url ? (
-          <img src={sized(braider.photo_url, 700)} alt={braider.display_name} loading="lazy" />
+          <img src={sizedFace(braider.photo_url, 700, 525)} alt={braider.display_name} loading="lazy" />
         ) : (
           <span className="photo-none">No photo yet</span>
         )}
