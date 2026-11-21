@@ -13,6 +13,7 @@ address. Set RESEND_FROM once a domain exists.
 import json
 import logging
 import os
+import urllib.error
 import urllib.request
 
 from django.core import signing
@@ -32,13 +33,16 @@ def frontend_url():
     return os.environ.get("FRONTEND_URL", default).rstrip("/")
 
 
+LAST_ERROR = {"detail": ""}
+
+
 def email_mode():
     """'resend' when a Resend key is set, otherwise 'console' (printed to the log)."""
-    return "resend" if os.environ.get("RESEND_API_KEY") else "console"
+    return "resend" if (os.environ.get("RESEND_API_KEY") or "").strip() else "console"
 
 
 def send_email(to, subject, text):
-    api_key = os.environ.get("RESEND_API_KEY")
+    api_key = (os.environ.get("RESEND_API_KEY") or "").strip()
     sender = os.environ.get("RESEND_FROM", "braidedU <onboarding@resend.dev>")
     if not api_key:
         logger.warning("EMAIL (console) to=%s subject=%s\n%s", to, subject, text)
@@ -53,8 +57,18 @@ def send_email(to, subject, text):
     )
     try:
         with urllib.request.urlopen(req, timeout=10):
+            LAST_ERROR["detail"] = ""
             return True
-    except Exception:  # noqa: BLE001 - never break the request over an email
+    except urllib.error.HTTPError as exc:
+        try:
+            reason = exc.read().decode()[:300]
+        except Exception:  # noqa: BLE001
+            reason = ""
+        LAST_ERROR["detail"] = f"Resend answered {exc.code}: {reason}"
+        logger.error("Resend email to %s failed: %s", to, LAST_ERROR["detail"])
+        return False
+    except Exception as exc:  # noqa: BLE001 - never break the request over an email
+        LAST_ERROR["detail"] = f"{type(exc).__name__}: {exc}"[:300]
         logger.exception("Resend email to %s failed", to)
         return False
 
