@@ -17,6 +17,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from django.contrib.auth.models import User
+from django.db import connection
 
 from . import emails, matching
 from .models import (
@@ -752,5 +753,10 @@ def delete_photo(request, photo_id):
 def health(request):
     """Safe status check: says how email is set up, never any key or address."""
     return Response(
-        {"ok": True, "email_mode": emails.email_mode(), "last_email_error": emails.LAST_ERROR["detail"]}
+        {
+            "ok": True,
+            "email_mode": emails.email_mode(),
+            "last_email_error": emails.LAST_ERROR["detail"],
+            "database": "postgres" if "postgresql" in connection.vendor else connection.vendor,
+        }
     )

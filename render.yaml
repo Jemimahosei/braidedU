@@ -15,11 +15,13 @@ services:
         value: "*"
       - key: DJANGO_CORS_ALLOW_ALL
         value: "1"
-      # Set by hand in the Render dashboard (never committed). When set, the
-      # backend uses Postgres; when unset it uses SQLite (ephemeral on Render
-      # — data resets on redeploy, fine for a demo, not for real users).
+      # Postgres from the free database below, so accounts survive redeploys.
+      # (Render's free Postgres expires after 30 days: move to Neon or a paid
+      # plan before then and set DATABASE_URL by hand.)
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: braidedu-db
+          property: connectionString
       - key: FRONTEND_URL
         value: https://braidedu-frontend.onrender.com
       # Email: when set, confirmation and reset emails go out through Resend;
@@ -40,3 +42,10 @@ services:
       # update this value + redeploy the frontend if it differs.
       - key: VITE_API_URL
         value: https://braidedu-backend.onrender.com/api
+
+databases:
+  - name: braidedu-db
+    plan: free
+    region: oregon
+    databaseName: braidedu
+    user: braidedu
