@@ -128,6 +128,22 @@ export function WakingNotice() {
   );
 }
 
+/** Retry a read a few times before giving up. The free server sleeps when
+ *  idle, and the first request can fail while it wakes — a page should wait
+ *  for it instead of showing an error on the first try. */
+export async function retryRead<T>(fn: () => Promise<T>, tries = 4, waitMs = 10000): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      last = e;
+      if (i < tries - 1) await new Promise((r) => window.setTimeout(r, waitMs));
+    }
+  }
+  throw last;
+}
+
 export function RowsSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="rows" aria-hidden="true">

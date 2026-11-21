@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, cap, formatPrice, todayISO, type Braider, type BraidStyle } from "../lib/api";
-import { BraiderRow, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
+import { BraiderRow, RowsSkeleton, WakingNotice, retryRead, useSlow } from "../components/ui";
 import { useAuth } from "../lib/auth";
 
 export default function Home() {
@@ -18,7 +18,9 @@ export default function Home() {
   const load = useCallback(() => {
     setLoading(true);
     setFailed(false);
-    Promise.all([api.styles(), api.braiders({})])
+    // The free server sleeps when idle: retry while it wakes instead of
+    // failing on the first try. Loading stays on so the waking notice shows.
+    retryRead(() => Promise.all([api.styles(), api.braiders({})]))
       .then(([s, b]) => {
         setStyles(s);
         setBraiders(b);

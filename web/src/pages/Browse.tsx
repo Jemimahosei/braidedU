@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, cap, CAMPUS_AREAS, todayISO, type Braider, type BraidStyle } from "../lib/api";
-import { BraiderRow, RowsSkeleton, WakingNotice, useSlow } from "../components/ui";
+import { BraiderRow, RowsSkeleton, WakingNotice, retryRead, useSlow } from "../components/ui";
 
 export default function Browse() {
   const [params, setParams] = useSearchParams();
@@ -26,18 +26,20 @@ export default function Browse() {
     const run = async () => {
       try {
         if (style && date) {
-          const ranked = await api.recommended({
-            style,
-            date,
-            ...(maxPrice ? { max_price: maxPrice } : {}),
-          });
+          const ranked = await retryRead(() =>
+            api.recommended({
+              style,
+              date,
+              ...(maxPrice ? { max_price: maxPrice } : {}),
+            }),
+          );
           // The ranked endpoint has no area filter, so apply it here.
           setResults(campus ? ranked.filter((b) => b.campus_area === campus) : ranked);
         } else {
           const q: Record<string, string> = {};
           if (style) q.style = style;
           if (campus) q.campus_area = campus;
-          const list = await api.braiders(q);
+          const list = await retryRead(() => api.braiders(q));
           setResults(
             maxPrice ? list.filter((b) => b.listings.some((l) => l.is_active && Number(l.price) <= Number(maxPrice))) : list,
           );

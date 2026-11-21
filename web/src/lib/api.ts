@@ -269,14 +269,36 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    // A multipart upload sets its own Content-Type (with the boundary).
-    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-    ...(options.headers as Record<string, string> | undefined),
+  const doFetch = async (withAuth: boolean) => {
+    const token = withAuth ? getToken() : null;
+    const headers: Record<string, string> = {
+      // A multipart upload sets its own Content-Type (with the boundary).
+      ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...(options.headers as Record<string, string> | undefined),
+    };
+    if (token) headers["Authorization"] = `Token ${token}`;
+    return fetch(`${API_BASE}${path}`, { ...options, headers });
   };
-  if (token) headers["Authorization"] = `Token ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let res = await doFetch(true);
+  if (res.status === 401) {
+    // A stale token (e.g. saved before the site moved databases) makes the
+    // server answer "Invalid token." on every call — including public pages,
+    // which then look broken. That session is dead: drop it and try once
+    // without it, so public content still loads.
+    let detail = "";
+    try {
+      detail = (await res.clone().json())?.detail || "";
+    } catch {
+      /* not JSON; fall through to the normal error below */
+    }
+    if (detail === "Invalid token.") {
+      clearAuth();
+      // Tell the app the dead session is gone, so the header stops
+      // showing a logged-in user who no longer exists server-side.
+      window.dispatchEvent(new Event("braidedu:session-expired"));
+      res = await doFetch(false);
+    }
+  }
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
     try {

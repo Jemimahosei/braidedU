@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import {
   clearAuth,
   getStoredUser,
@@ -16,6 +16,14 @@ const Ctx = createContext<AuthCtx>({ user: null, signIn: () => {}, signOut: () =
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  // The API layer drops a dead session token when the server says it is
+  // invalid (e.g. from before the site moved databases); reflect that
+  // in the header immediately instead of showing a logged-in ghost.
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener("braidedu:session-expired", onExpired);
+    return () => window.removeEventListener("braidedu:session-expired", onExpired);
+  }, []);
   return (
     <Ctx.Provider
       value={{
