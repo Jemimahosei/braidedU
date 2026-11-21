@@ -73,9 +73,14 @@ def register(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
-    emails.send_confirmation(user)
+    sent = emails.send_confirmation(user)
     return Response(
-        {"detail": "Check your Cornell email for a confirmation link.", "email": user.email},
+        {
+            "detail": "Check your Cornell email for a confirmation link.",
+            "email": user.email,
+            "email_sent": bool(sent),
+            "email_mode": emails.email_mode(),
+        },
         status=status.HTTP_201_CREATED,
     )
 
@@ -740,3 +745,10 @@ def delete_photo(request, photo_id):
     photo_store.delete_stored(photo.storage_key)
     photo.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def health(request):
+    """Safe status check: says how email is set up, never any key or address."""
+    return Response({"ok": True, "email_mode": emails.email_mode()})

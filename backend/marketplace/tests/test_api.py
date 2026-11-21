@@ -276,3 +276,11 @@ class ThreadProfileLinkTests(APITestCase):
         response = self.client.get(f"/api/messages/{User.objects.get(username='tp-braider@cornell.edu').id}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["profile_id"], braider["profile_id"])
+
+
+class EmailStatusTests(APITestCase):
+    def test_health_reports_email_mode_only(self):
+        r = self.client.get("/api/health/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(r.json()["email_mode"], ("resend", "console"))
+        self.assertEqual(set(r.json()), {"ok", "email_mode"})
