@@ -54,7 +54,7 @@ export default function Home() {
           <h1>Every braid, priced before you ask.</h1>
           <p className="lede">Braiders on campus, their work, their prices.</p>
 
-          <form className="searchbar" onSubmit={search}>
+          <form className="searchbar phone-hide" onSubmit={search}>
             <div>
               <label htmlFor="h-style">Style</label>
               <select id="h-style" value={style} onChange={(e) => setStyle(e.target.value)}>
@@ -81,15 +81,15 @@ export default function Home() {
             </button>
           </form>
 
-          <p className="shelf-note">Starting prices by style</p>
+          <p className="shelf-note phone-hide">Starting prices by style</p>
           {loading ? (
-            <div className="shelf" aria-hidden="true" style={{ minHeight: "46px" }} />
+            <div className="shelf phone-hide" aria-hidden="true" style={{ minHeight: "46px" }} />
           ) : shelf.length === 0 ? (
-            <div className="shelf">
+            <div className="shelf phone-hide">
               <span className="muted">No prices are listed yet.</span>
             </div>
           ) : (
-            <div className="shelf">
+            <div className="shelf phone-hide">
               {shelf.map(({ style: s, from }) => (
                 <Link key={s.id} to={`/browse?style=${encodeURIComponent(s.name)}`} className="shelf-pill">
                   <b>{cap(s.name)}</b>
@@ -121,7 +121,7 @@ export default function Home() {
             No braiders are listed yet. <Link to="/signup?role=braider">List your chair</Link> to be the first.
           </p>
         ) : (
-          <div className="rows">
+          <div className="rows rows-home">
             {braiders.slice(0, 6).map((b) => (
               <BraiderRow key={b.id} braider={b} />
             ))}
@@ -129,7 +129,7 @@ export default function Home() {
         )}
       </section>
 
-      <section className="wrap" style={{ paddingTop: 24, paddingBottom: 24 }}>
+      <section className="wrap phone-hide" style={{ paddingTop: 24, paddingBottom: 24 }}>
         <h2 className="home-h2" style={{ marginBottom: 20 }}>
           How booking works
         </h2>

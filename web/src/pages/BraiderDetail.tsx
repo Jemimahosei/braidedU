@@ -112,6 +112,7 @@ export default function BraiderDetail() {
   const [braider, setBraider] = useState<Braider | null>(null);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"book" | "custom">("book");
+  const [panelOpen, setPanelOpen] = useState(false);
   const [listingId, setListingId] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -251,20 +252,28 @@ export default function BraiderDetail() {
                   : "New, no reviews yet"}
               </span>
               {braider.instagram && (
-                <a href={instagramUrl(braider.instagram)} target="_blank" rel="noreferrer">
+                <a href={instagramUrl(braider.instagram)} target="_blank" rel="noreferrer" className="ig-meta">
                   Instagram
                 </a>
               )}
             </div>
-            {isSelf ? (
-              <Link to="/my-page" className="btn btn-msg">
-                Edit my page
-              </Link>
-            ) : (
-              <Link to={user ? `/messages/${braider.user_id}` : `/login?next=/messages/${braider.user_id}`} className="btn btn-msg">
-                Message {name}
-              </Link>
-            )}
+            <div className="profile-btns">
+              {isSelf ? (
+                <Link to="/my-page" className="btn btn-msg">
+                  Edit my page
+                </Link>
+              ) : (
+                <Link to={user ? `/messages/${braider.user_id}` : `/login?next=/messages/${braider.user_id}`} className="btn btn-msg">
+                  <span className="full-name">Message {name}</span>
+                  <span className="short-name">Message</span>
+                </Link>
+              )}
+              {braider.instagram && (
+                <a href={instagramUrl(braider.instagram)} target="_blank" rel="noreferrer" className="btn btn-ghost btn-msg ig-btn">
+                  Instagram
+                </a>
+              )}
+            </div>
           </div>
         </div>
         {braider.bio && <p className="profile-bio">{braider.bio}</p>}
@@ -333,7 +342,7 @@ export default function BraiderDetail() {
         <ReviewForm braider={braider} booking={reviewable} onPosted={load} />
       </div>
 
-      <aside className="book-panel">
+      <aside className={`book-panel${panelOpen ? " open" : ""}`} id="book-panel">
         <div className="seg" role="tablist" aria-label="Request type">
           <button type="button" role="tab" aria-selected={mode === "book"} onClick={() => setMode("book")}>
             Book
@@ -453,6 +462,26 @@ export default function BraiderDetail() {
           )}
         </div>
       </aside>
+
+      <div className="book-bar">
+        <div style={{ flex: 1 }}>
+          <div className="book-bar-style">{chosen ? cap(chosen.style_name) : name}</div>
+          <div className="book-bar-price">{chosen ? formatPrice(chosen.price) : ""}</div>
+        </div>
+        <button
+          type="button"
+          className="btn"
+          aria-expanded={panelOpen}
+          aria-controls="book-panel"
+          disabled={activeListings.length === 0}
+          onClick={() => {
+            setPanelOpen(true);
+            window.setTimeout(() => document.getElementById("book-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+          }}
+        >
+          Book
+        </button>
+      </div>
     </main>
   );
 }

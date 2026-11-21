@@ -183,6 +183,11 @@ export default function BookingPage() {
         </section>
       )}
 
+      {mine && ["requested", "accepted", "paid", "confirmed"].includes(b.status) && (
+        <Link to="/dashboard" className="phone-cancel">
+          Cancel booking
+        </Link>
+      )}
       <p style={{ marginTop: 24 }}>
         <Link to="/dashboard" style={{ fontWeight: 600 }}>
           {mine ? "Back to my bookings" : "Back to requests"}
