@@ -15,6 +15,7 @@ import PostingForm from "./pages/PostingForm";
 import Availability from "./pages/Availability";
 import MyPageEdit from "./pages/MyPageEdit";
 import Join from "./pages/Join";
+import Account from "./pages/Account";
 import BookingPage from "./pages/BookingPage";
 
 function DashboardRoute() {
@@ -32,8 +33,8 @@ function BraiderOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function Header() {
-  const { user, signOut } = useAuth();
+function useUnread() {
+  const { user } = useAuth();
   const [unread, setUnread] = useState(0);
   useEffect(() => {
     if (!user) return;
@@ -42,6 +43,36 @@ function Header() {
     const t = window.setInterval(load, 60000);
     return () => window.clearInterval(t);
   }, [user]);
+  return user ? unread : 0;
+}
+
+/** The phone tab bar (mockups: MBrowse, MMessages): four tabs along the bottom. */
+function BottomNav({ unread }: { unread: number }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  const braider = user?.role === "braider";
+  return (
+    <nav className="tabbar" aria-label="Main">
+      {braider ? (
+        <>
+          <NavLink to="/dashboard">Requests</NavLink>
+          <NavLink to="/messages">Messages{unread > 0 ? ` (${unread})` : ""}</NavLink>
+          <NavLink to="/postings">Postings</NavLink>
+        </>
+      ) : (
+        <>
+          <NavLink to="/browse" className={() => (pathname === "/" || pathname.startsWith("/browse") || pathname.startsWith("/braiders") ? "active" : "")}>Find</NavLink>
+          <NavLink to="/messages">Messages{unread > 0 ? ` (${unread})` : ""}</NavLink>
+          <NavLink to="/dashboard">Bookings</NavLink>
+        </>
+      )}
+      <NavLink to={user ? "/account" : "/login"}>Account</NavLink>
+    </nav>
+  );
+}
+
+function Header({ unread }: { unread: number }) {
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const braider = user?.role === "braider";
   return (
@@ -95,14 +126,14 @@ function Header() {
   );
 }
 
-export default function App() {
+function Shell() {
+  const unread = useUnread();
   return (
-    <AuthProvider>
-      <HashRouter>
-        <Header />
-        <main>
+    <div className="shell">
+      <Header unread={unread} />
+      <div className="shell-body">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<main><Home /></main>} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/braiders/:id" element={<BraiderDetail />} />
             <Route path="/login" element={<Login />} />
@@ -120,12 +151,23 @@ export default function App() {
             <Route path="/availability" element={<BraiderOnly><Availability /></BraiderOnly>} />
             <Route path="/my-page" element={<BraiderOnly><MyPageEdit /></BraiderOnly>} />
             <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/account" element={<Account />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </main>
-        <footer className="site-footer">
-          <div className="wrap">A Cornell student project</div>
-        </footer>
+      </div>
+      <footer className="site-footer">
+        <div className="wrap">A Cornell student project</div>
+      </footer>
+      <BottomNav unread={unread} />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <HashRouter>
+        <Shell />
       </HashRouter>
     </AuthProvider>
   );

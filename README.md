@@ -20,7 +20,12 @@ reputation through reviews. No more chasing DMs.
 | `/messages`, `/messages/:userId` | Conversations with an email notice to the other person, photo sharing, report and block | Signed in |
 | `/signup`, `/login` | Create an account with a Cornell email (client or braider), log in | Everyone |
 | `/confirm?token=`, `/forgot`, `/reset?token=` | Email confirmation, forgot password, choose a new password | Everyone |
-| `/dashboard` | Client: appointments, pay info after accept, "I've paid", change time, cancel, receipt, review. Braider: requests, schedule (payment received, complete, cancel), listings, profile and rules | Signed in |
+| `/dashboard` | Client: My bookings (appointments, change time, cancel). Braider: Requests (accept, decline, payment received, complete, cancel) and reviews | Signed in |
+| `/bookings/:id` | Booking page: pay info after accept, "I've paid", screenshot, receipt, review | Signed in |
+| `/join` | Braider onboarding after email confirmation | Braiders |
+| `/postings`, `/postings/new`, `/postings/:id/edit` | Braider postings: list, add, edit, delete (not once booked) | Braiders |
+| `/availability`, `/my-page` | Braider hours, rules and deposit note; edit her public page | Braiders |
+| `/account` | Phone-only tab: account links and log out | Signed in |
 
 ## Stack
 
@@ -146,11 +151,14 @@ Figtree for text. Real photos lead every card; a braider with no photo shows
 her initials on sand, never a stand-in face. The logo is a silhouette badge
 with a braided bun. The site shows a "server waking up" notice instead of an
 empty list when the free API host is asleep. Phone layouts use the same
-styles (one column, scrolling nav, large tap targets).
+styles under 700px: a bottom tab bar (Find / Messages / Bookings, or
+Requests / Messages / Postings for braiders, plus Account), single-column cards,
+a sticky Book bar on braider profiles and full-width chat. Every page follows
+the mockup boards in `mockups/`; the footer reads "A Cornell student project".
 
 ## Tests
 
 ```bash
 cd backend
-.venv/bin/python manage.py test marketplace   # 56 tests
+.venv/bin/python manage.py test marketplace   # 61 tests
 ```
