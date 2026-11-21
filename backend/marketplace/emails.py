@@ -1,20 +1,29 @@
 """Sending email, and the signed links that go in it.
 
-If RESEND_API_KEY is set, mail goes out through Resend (https://resend.com).
-Otherwise it is printed to the server log, so everything still works in
+Two senders, in order:
+
+1. SMTP (Gmail or any server) when SMTP_HOST, SMTP_USER and SMTP_PASS are
+   set — this is the sender that reaches anyone, so it is the one to use
+   once real users sign up. SMTP_FROM defaults to SMTP_USER.
+2. Resend (https://resend.com) when RESEND_API_KEY is set.
+
+Otherwise mail is printed to the server log, so everything still works in
 development and before a sender is set up. Sending never raises: a failed
 email must not break a sign-up or a booking.
 
 Until a domain is verified at Resend, their test sender
 (onboarding@resend.dev) can only deliver to the Resend account owner's own
-address. Set RESEND_FROM once a domain exists.
+address — nobody else's confirmation email will ever arrive. Set RESEND_FROM
+once a domain exists, or use SMTP instead.
 """
 
 import json
 import logging
 import os
+import smtplib
 import urllib.error
 import urllib.request
+from email.message import EmailMessage
 
 from django.core import signing
 
@@ -36,12 +45,60 @@ def frontend_url():
 LAST_ERROR = {"detail": ""}
 
 
+def smtp_configured():
+    """True when an SMTP sender is fully configured (host, user, password)."""
+    return bool(
+        (os.environ.get("SMTP_HOST") or "").strip()
+        and (os.environ.get("SMTP_USER") or "").strip()
+        and (os.environ.get("SMTP_PASS") or "").strip()
+    )
+
+
 def email_mode():
-    """'resend' when a Resend key is set, otherwise 'console' (printed to the log)."""
+    """'smtp' when SMTP is set, 'resend' when a Resend key is set, else 'console'."""
+    if smtp_configured():
+        return "smtp"
     return "resend" if (os.environ.get("RESEND_API_KEY") or "").strip() else "console"
 
 
+def _send_smtp(to, subject, text):
+    """Send one message through the configured SMTP server (raises on failure)."""
+    host = os.environ["SMTP_HOST"].strip()
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    user = os.environ["SMTP_USER"].strip()
+    sender = (os.environ.get("SMTP_FROM") or user).strip()
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = to
+    msg["Subject"] = subject
+    # Plain ASCII, sent whole: quoted-printable would fold the long
+    # confirmation URL mid-token and break the link.
+    msg.set_content(text, cte="7bit")
+    if port == 465:
+        server = smtplib.SMTP_SSL(host, port, timeout=10)
+    else:
+        server = smtplib.SMTP(host, port, timeout=10)
+        server.starttls()
+    try:
+        server.login(user, os.environ["SMTP_PASS"])
+        server.send_message(msg)
+    finally:
+        try:
+            server.quit()
+        except Exception:  # noqa: BLE001 - already done sending
+            pass
+
+
 def send_email(to, subject, text):
+    if smtp_configured():
+        try:
+            _send_smtp(to, subject, text)
+        except Exception as exc:  # noqa: BLE001 - never break the request over an email
+            LAST_ERROR["detail"] = f"SMTP failed: {type(exc).__name__}: {exc}"[:300]
+            logger.error("SMTP email to %s failed: %s", to, LAST_ERROR["detail"])
+            return False
+        LAST_ERROR["detail"] = ""
+        return True
     api_key = (os.environ.get("RESEND_API_KEY") or "").strip()
     sender = os.environ.get("RESEND_FROM", "braidedU <onboarding@resend.dev>")
     if not api_key:

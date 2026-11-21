@@ -131,6 +131,8 @@ run it by hand or from any free scheduler that can run a command.
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Photo storage (Cloudinary free plan). All three set → photos upload to Cloudinary and are served resized and compressed. Unset → saved to local disk (development only; Render wipes it on redeploy) |
 | `RESEND_API_KEY` | Email sending through Resend. Unset → emails are printed to the server log. Until a domain is verified at Resend, the test sender can only deliver to the Resend account owner's own address |
 | `RESEND_FROM` | Sender, default `braidedU <onboarding@resend.dev>`; change once a domain is verified |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | Email sending through SMTP (e.g. Gmail: `smtp.gmail.com`, `587`, Gmail address, Gmail app password). When all three of host, user and password are set, SMTP is used instead of Resend — and unlike Resend's test sender it delivers to anyone |
+| `SMTP_FROM` | Sender for SMTP mail, default `SMTP_USER` |
 | `REPORT_EMAIL` | Optional. Where new reports are emailed. Reports are always visible in the Django admin |
 | `FRONTEND_URL` | Base URL used in emailed links (default: the Render site when `DJANGO_DEBUG=0`) |
 | `VITE_API_URL` | API base URL baked into the website build |
