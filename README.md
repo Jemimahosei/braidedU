@@ -153,8 +153,7 @@ with a braided bun. The site shows a "server waking up" notice instead of an
 empty list when the free API host is asleep. Phone layouts use the same
 styles under 700px: a bottom tab bar (Find / Messages / Bookings, or
 Requests / Messages / Postings for braiders, plus Account), single-column cards,
-a sticky Book bar on braider profiles and full-width chat. Every page follows
-the mockup boards in `mockups/`; the footer reads "A Cornell student project".
+a sticky Book bar on braider profiles and full-width chat. The footer reads "A Cornell student project".
 
 ## Tests
 
