@@ -751,4 +751,6 @@ def delete_photo(request, photo_id):
 @permission_classes([permissions.AllowAny])
 def health(request):
     """Safe status check: says how email is set up, never any key or address."""
-    return Response({"ok": True, "email_mode": emails.email_mode()})
+    return Response(
+        {"ok": True, "email_mode": emails.email_mode(), "last_email_error": emails.LAST_ERROR["detail"]}
+    )
