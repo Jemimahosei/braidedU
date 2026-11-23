@@ -4,8 +4,8 @@ These are placeholder profiles for friends of the site's owner, so the
 browse page is not empty before real braiders sign up. Each is flagged
 ``is_demo`` so the site badges her "Demo profile". The accounts have no
 usable password, so nobody can sign in as them. Prices, hours, areas and
-Instagram handles are stand-ins; photos are left blank until each braider
-uploads her own.
+Instagram handles are stand-ins; photos are added only where a friend sent one
+(web/public/people); the rest wait for each braider to upload her own.
 
 Safe to run on every deploy: it makes what is missing and never changes
 a profile once a braider has edited it.
@@ -19,6 +19,9 @@ from django.db import transaction
 
 from marketplace.management.commands.seed_styles import STYLES
 from marketplace.models import BraiderProfile, BraidStyle, Listing
+
+# Photos that live in web/public/people, served by the site itself.
+PHOTOS = {"Vassou": "/people/vassou.jpg", "Persis": "/people/persis.jpg"}
 
 # name, area, days, (price, minutes) per style as {style: (price, minutes)}
 FRIENDS = [
@@ -61,6 +64,9 @@ def seed():
             profile.is_active = True
             profile.is_demo = True
             profile.save()
+        if name in PHOTOS and not profile.photo_url:
+            profile.photo_url = PHOTOS[name]
+            profile.save(update_fields=["photo_url"])
         for style_name, (price, minutes) in offers.items():
             desc, _typical = descriptions[style_name]
             style, _ = BraidStyle.objects.get_or_create(

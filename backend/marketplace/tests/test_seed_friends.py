@@ -28,3 +28,10 @@ class SeedFriendsTests(APITestCase):
         r = self.client.get("/api/braiders/?style=faux%20locs")
         self.assertEqual(r.status_code, 200)
         self.assertEqual([b["display_name"] for b in r.data["results"]], ["Persis"])
+
+    def test_vassou_gets_her_photo_without_overwriting_a_new_one(self):
+        call_command("seed_friends")
+        self.assertEqual(BraiderProfile.objects.get(display_name="Vassou").photo_url, "/people/vassou.jpg")
+        BraiderProfile.objects.filter(display_name="Vassou").update(photo_url="https://x/y.jpg")
+        call_command("seed_friends")
+        self.assertEqual(BraiderProfile.objects.get(display_name="Vassou").photo_url, "https://x/y.jpg")
