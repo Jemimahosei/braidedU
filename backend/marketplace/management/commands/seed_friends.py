@@ -21,7 +21,8 @@ from marketplace.management.commands.seed_styles import STYLES
 from marketplace.models import BraiderProfile, BraidStyle, Listing
 
 # Photos that live in web/public/people, served by the site itself.
-PHOTOS = {"Vassou": "/people/vassou.jpg", "Persis": "/people/persis.jpg"}
+PHOTOS = {"Vassou": "/people/vassou.jpg", "Persis": "/people/persis.jpg",
+          "Erica": "/people/erica.jpg"}
 
 # name, area, days, (price, minutes) per style as {style: (price, minutes)}
 FRIENDS = [
