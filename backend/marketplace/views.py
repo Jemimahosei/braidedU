@@ -111,6 +111,22 @@ def register(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
+    if emails.auto_confirm():
+        # No sender can reach new users yet, so confirm now instead of
+        # locking them out behind an email that never arrives.
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+        return Response(
+            {
+                **_session(user),
+                "detail": "Your account is ready.",
+                "email": user.email,
+                "email_sent": False,
+                "email_mode": emails.email_mode(),
+                "auto_confirmed": True,
+            },
+            status=status.HTTP_201_CREATED,
+        )
     sent = emails.send_confirmation(user)
     return Response(
         {
@@ -839,6 +855,7 @@ def health(request):
         {
             "ok": True,
             "email_mode": emails.email_mode(),
+            "auto_confirm": emails.auto_confirm(),
             "last_email_error": emails.LAST_ERROR["detail"],
             "database": "postgres" if "postgresql" in connection.vendor else connection.vendor,
         }

@@ -286,4 +286,4 @@ class EmailStatusTests(APITestCase):
         r = self.client.get("/api/health/")
         self.assertEqual(r.status_code, 200)
         self.assertIn(r.json()["email_mode"], ("smtp", "resend", "console"))
-        self.assertEqual(set(r.json()), {"ok", "email_mode", "last_email_error", "database"})
+        self.assertEqual(set(r.json()), {"ok", "email_mode", "auto_confirm", "last_email_error", "database"})

@@ -54,6 +54,32 @@ def smtp_configured():
     )
 
 
+def delivers_to_anyone():
+    """True when mail can reach any Cornell address.
+
+    SMTP can. Resend can only once a sending domain is verified and set as
+    RESEND_FROM; its test sender reaches the account owner alone.
+    """
+    if smtp_configured():
+        return True
+    return bool(
+        (os.environ.get("RESEND_API_KEY") or "").strip()
+        and (os.environ.get("RESEND_FROM") or "").strip()
+    )
+
+
+def auto_confirm():
+    """Skip the confirmation email while no sender can reach new users.
+
+    Without this, every sign up is locked out of log in by an email that never
+    arrives. Once SMTP (or a verified Resend domain) is set this turns itself
+    off. Set EMAIL_REQUIRE_CONFIRM=1 to turn it off regardless.
+    """
+    if (os.environ.get("EMAIL_REQUIRE_CONFIRM") or "").strip() == "1":
+        return False
+    return not delivers_to_anyone()
+
+
 def email_mode():
     """'smtp' when SMTP is set, 'resend' when a Resend key is set, else 'console'."""
     if smtp_configured():

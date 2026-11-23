@@ -117,6 +117,7 @@ export function Signup() {
   const [sentTo, setSentTo] = useState("");
   const [emailSent, setEmailSent] = useState(true);
   const [busy, setBusy] = useState(false);
+  const goIn = useSignIn();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +125,11 @@ export function Signup() {
     setBusy(true);
     try {
       const res = await api.register(email.trim().toLowerCase(), password, role, displayName.trim());
+      if (res.auto_confirmed) {
+        // The site can't email new users yet, so the account is ready now.
+        goIn(res, role === "braider" ? "/join" : "/browse");
+        return;
+      }
       setEmailSent(res.email_sent);
       setSentTo(res.email);
     } catch (err) {

@@ -1,3 +1,6 @@
+import os
+from unittest import mock
+
 from django.contrib.auth.models import User
 from django.core import mail
 from rest_framework.test import APITestCase
@@ -7,6 +10,7 @@ from marketplace import emails
 PW = "pw-12345678"
 
 
+@mock.patch.dict(os.environ, {"EMAIL_REQUIRE_CONFIRM": "1"})
 class CornellSignupTests(APITestCase):
     def register(self, email="ada@cornell.edu", **extra):
         return self.client.post(
@@ -103,3 +107,53 @@ class CornellSignupTests(APITestCase):
         self.assertEqual(r.status_code, 200)
         r = self.client.post("/api/auth/resend/", {"email": "who@cornell.edu"}, format="json")
         self.assertEqual(r.status_code, 200)
+
+
+MAIL_KEYS = ("SMTP_HOST", "SMTP_USER", "SMTP_PASS", "RESEND_API_KEY", "RESEND_FROM", "EMAIL_REQUIRE_CONFIRM")
+
+
+class AutoConfirmTests(APITestCase):
+    """While no sender can reach new users, sign up must not lock them out."""
+
+    def _env(self, **overrides):
+        values = {k: "" for k in MAIL_KEYS}
+        values.update(overrides)
+        return mock.patch.dict(os.environ, values, clear=False)
+
+    def register(self, email="ada@cornell.edu"):
+        return self.client.post(
+            "/api/auth/register/",
+            {"email": email, "password": PW, "role": "client", "display_name": "Ada"},
+            format="json",
+        )
+
+    def test_confirms_and_signs_in_when_no_sender_reaches_users(self):
+        for env in ({}, {"RESEND_API_KEY": "re_test"}):  # Resend test sender reaches only its owner
+            with self._env(**env):
+                email = f"u{len(env)}@cornell.edu"
+                r = self.register(email)
+                self.assertEqual(r.status_code, 201)
+                self.assertTrue(r.data["auto_confirmed"])
+                self.assertIn("token", r.data)
+                r = self.client.post("/api/auth/login/", {"username": email, "password": PW}, format="json")
+                self.assertEqual(r.status_code, 200)
+
+    def test_requires_confirmation_once_smtp_is_set(self):
+        with self._env(SMTP_HOST="smtp.gmail.com", SMTP_USER="a@gmail.com", SMTP_PASS="x"), mock.patch(
+            "marketplace.emails._send_smtp"
+        ):
+            r = self.register()
+            self.assertNotIn("token", r.data)
+            self.assertNotIn("auto_confirmed", r.data)
+            r = self.client.post("/api/auth/login/", {"username": "ada@cornell.edu", "password": PW}, format="json")
+            self.assertEqual(r.status_code, 403)
+
+    def test_requires_confirmation_with_verified_resend_domain(self):
+        with self._env(RESEND_API_KEY="re_test", RESEND_FROM="braidedU <hi@braidedu.com>"), mock.patch(
+            "marketplace.emails.urllib.request.urlopen"
+        ):
+            self.assertNotIn("token", self.register().data)
+
+    def test_require_flag_turns_it_off(self):
+        with self._env(EMAIL_REQUIRE_CONFIRM="1"):
+            self.assertNotIn("token", self.register().data)
