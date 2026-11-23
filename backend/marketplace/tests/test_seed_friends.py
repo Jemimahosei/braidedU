@@ -5,9 +5,9 @@ from marketplace.models import BraiderProfile, Listing
 
 
 class SeedFriendsTests(APITestCase):
-    def test_creates_six_demo_braiders_with_their_styles(self):
+    def test_creates_five_demo_braiders_with_their_styles(self):
         call_command("seed_friends")
-        self.assertEqual(BraiderProfile.objects.filter(is_demo=True).count(), 6)
+        self.assertEqual(BraiderProfile.objects.filter(is_demo=True).count(), 5)
         erica = BraiderProfile.objects.get(display_name="Erica")
         self.assertEqual(
             set(erica.listings.values_list("style__name", flat=True)),
@@ -35,3 +35,22 @@ class SeedFriendsTests(APITestCase):
         BraiderProfile.objects.filter(display_name="Vassou").update(photo_url="https://x/y.jpg")
         call_command("seed_friends")
         self.assertEqual(BraiderProfile.objects.get(display_name="Vassou").photo_url, "https://x/y.jpg")
+
+    def test_jemimah_is_not_seeded_and_an_old_stand_in_is_removed(self):
+        from django.contrib.auth.models import User
+
+        User.objects.create(username="friend.jemimah")
+        call_command("seed_friends")
+        self.assertFalse(User.objects.filter(username="friend.jemimah").exists())
+        self.assertFalse(BraiderProfile.objects.filter(display_name="Jemimah").exists())
+
+    def test_a_real_erica_without_styles_becomes_vassou(self):
+        from django.contrib.auth.models import User
+
+        real = User.objects.create(username="someone@cornell.edu")
+        BraiderProfile.objects.create(user=real, display_name="Erica")
+        call_command("seed_friends")
+        self.assertEqual(BraiderProfile.objects.get(user=real).display_name, "Vassou")
+        self.assertEqual(BraiderProfile.objects.filter(display_name="Vassou").count(), 1)
+        self.assertEqual(BraiderProfile.objects.filter(display_name="Erica").count(), 1)
+        self.assertEqual(BraiderProfile.objects.get(user=real).photo_url, "/people/vassou.jpg")
