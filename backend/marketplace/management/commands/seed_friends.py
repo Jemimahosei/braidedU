@@ -1,4 +1,4 @@
-"""Add the six launch braiders shown in the design mockup.
+"""Add the five launch braiders shown in the design mockup.
 
 These are placeholder profiles for friends of the site's owner, so the
 browse page is not empty before real braiders sign up. Each is flagged
@@ -37,16 +37,40 @@ FRIENDS = [
     ("Winifred", "south", ["fri", "sat"],
      {"cornrows": (45, 90), "box braids": (80, 210), "boho braids": (110, 270),
       "fulani braids": (75, 180)}),
-    ("Jemimah", "north", ["sat", "sun"],
-     {"weaves": (90, 180), "extensions": (60, 120), "ponytails": (40, 75), "curling": (30, 60)}),
 ]
+
+
+def tidy():
+    """Fix two things on the live site.
+
+    Jemimah is not part of the demo set: remove the stand-in profile made by
+    an earlier run (her own account is untouched). A real sign-up called
+    "Erica" with no styles listed is Vassou, so rename it and skip the
+    stand-in Vassou.
+    """
+    User.objects.filter(username="friend.jemimah").delete()
+    stray = (
+        BraiderProfile.objects.filter(display_name="Erica", is_demo=False, listings__isnull=True)
+        .exclude(user__username__startswith="friend.")
+        .first()
+    )
+    if stray:
+        stray.display_name = "Vassou"
+        if not stray.photo_url:
+            stray.photo_url = PHOTOS["Vassou"]
+        stray.save(update_fields=["display_name", "photo_url"])
+        User.objects.filter(username="friend.vassou").delete()
+    return stray is not None
 
 
 @transaction.atomic
 def seed():
+    renamed = tidy()
     descriptions = {name: (desc, mins) for name, desc, mins in STYLES}
     made = 0
     for name, area, days, offers in FRIENDS:
+        if name == "Vassou" and renamed:
+            continue
         user, new_user = User.objects.get_or_create(
             username=f"friend.{name.lower()}", defaults={"is_active": True}
         )
