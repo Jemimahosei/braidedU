@@ -22,7 +22,7 @@ from marketplace.models import BraiderProfile, BraidStyle, Listing
 
 # Photos that live in web/public/people, served by the site itself.
 PHOTOS = {"Vassou": "/people/vassou.jpg", "Persis": "/people/persis.jpg",
-          "Erica": "/people/erica.jpg"}
+          "Erica": "/people/erica.jpg", "Richlove": "/people/richlove.jpg"}
 
 # name, area, days, (price, minutes) per style as {style: (price, minutes)}
 FRIENDS = [
