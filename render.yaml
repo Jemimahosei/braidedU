@@ -23,8 +23,17 @@ services:
         sync: false
       - key: FRONTEND_URL
         value: https://braidedu-frontend.onrender.com
-      # Email: when set, confirmation and reset emails go out through Resend;
-      # unset, they are printed to the server log.
+      # Email. SMTP (Gmail app password) reaches any Cornell address, so use it
+      # for real sign ups. While no sender can reach new users, sign up skips
+      # the confirmation email and signs the user straight in.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      # Resend's test sender only reaches its account owner. Set RESEND_FROM
+      # once a domain is verified there.
       - key: RESEND_API_KEY
         sync: false
 
